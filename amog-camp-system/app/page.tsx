@@ -260,8 +260,15 @@ export default function Home() {
             <h1 className="text-3xl font-extrabold text-center mb-2 text-gray-900">AMOG Camp 2026</h1>
             <p className="text-center text-gray-500 mb-8">Secure Help Desk Login</p>
             <form onSubmit={handleLogin} className="space-y-6">
-              <div><label className="font-bold text-gray-700">Email</label><input name="email" type="email" className="w-full p-4 border-2 rounded-xl" required /></div>
-              <div><label className="font-bold text-gray-700">Password</label><input name="password" type="password" className="w-full p-4 border-2 rounded-xl" required /></div>
+              {/* Added text-gray-900 to ensure text is black */}
+                <div>
+                    <label className="font-bold text-gray-700">Email</label>
+                    <input name="email" type="email" className="w-full p-4 border-2 rounded-xl text-gray-900 bg-white" required />
+                </div>
+                <div>
+                    <label className="font-bold text-gray-700">Password</label>
+                    <input name="password" type="password" className="w-full p-4 border-2 rounded-xl text-gray-900 bg-white" required />
+                </div>
               <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg">Sign In</button>
             </form>
          </div>
