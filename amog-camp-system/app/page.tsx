@@ -258,7 +258,7 @@ export default function Home() {
          <img src="/camp-bg.png" className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay z-0" />
          <div className="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md relative z-10 backdrop-blur-xl border border-white/10">
             <h1 className="text-3xl font-extrabold text-center mb-2 text-gray-900">AMOG Camp 2026</h1>
-            <p className="text-center text-gray-500 mb-8">Secure Help Desk Login</p>
+            <p className="text-center text-gray-500 mb-8">Registration and Help Desk Login</p>
             <form onSubmit={handleLogin} className="space-y-6">
               {/* Added text-gray-900 to ensure text is black */}
                 <div>
