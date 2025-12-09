@@ -24,13 +24,13 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   const bgClass = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-yellow-500';
 
   return (
-    <div className={`fixed top-4 right-4 z-[100] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 text-white ${bgClass}`}>
+    <div className={`fixed top-4 right-4 left-4 md:left-auto z-[100] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top md:slide-in-from-right duration-300 text-white ${bgClass}`}>
       <span className="text-xl font-bold">{type === 'success' ? '✓' : type === 'error' ? 'X' : '⚠️'}</span>
       <div>
         <h4 className="font-bold text-lg capitalize">{type}</h4>
-        <p className="font-medium opacity-90">{msg}</p>
+        <p className="font-medium opacity-90 text-sm md:text-base">{msg}</p>
       </div>
-      <button onClick={onClose} className="ml-4 opacity-70 hover:opacity-100">✕</button>
+      <button onClick={onClose} className="ml-auto md:ml-4 opacity-70 hover:opacity-100">✕</button>
     </div>
   );
 }
@@ -229,16 +229,17 @@ export default function Home() {
     if (error) showToast(error.message, 'error');
   };
 
-  // --- UPDATED FILTERS (Name OR Phone) ---
+  // --- UPDATED FILTERS (Name OR Phone + ALPHABETICAL SORT) ---
   const filteredPeople = people.filter((p) => {
     const term = search.toLowerCase();
-    const matchesSearch = p.full_name?.toLowerCase().includes(term) || p.phone_number?.includes(term); // NEW: SEARCH BY PHONE
+    const matchesSearch = (p.full_name || '').toLowerCase().includes(term) || (p.phone_number || '').includes(term);
+    
     if (!matchesSearch) return false;
     if (filter === 'paid') return p.payment_status === 'Paid';
     if (filter === 'owing') return p.payment_status === 'Partial' || p.payment_status === 'Pending';
     if (filter === 'checked_in') return p.checked_in === true;
     return true; 
-  });
+  }).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
 
   const stats = { 
     checkedIn: people.filter(p => p.checked_in).length, 
@@ -253,22 +254,21 @@ export default function Home() {
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900 relative font-sans">
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 relative font-sans p-4">
          <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-black z-0"></div>
          <img src="/camp-bg.png" className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay z-0" />
-         <div className="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md relative z-10 backdrop-blur-xl border border-white/10">
-            <h1 className="text-3xl font-extrabold text-center mb-2 text-gray-900">AMOG Camp 2026</h1>
-            <p className="text-center text-gray-500 mb-8">Registration and Help Desk Login</p>
+         <div className="bg-white p-6 md:p-10 rounded-2xl shadow-2xl w-full max-w-md relative z-10 backdrop-blur-xl border border-white/10 mx-4 md:mx-0">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-center mb-2 text-gray-900">AMOG Camp 2026</h1>
+            <p className="text-center text-gray-500 mb-8">Secure Help Desk Login</p>
             <form onSubmit={handleLogin} className="space-y-6">
-              {/* Added text-gray-900 to ensure text is black */}
-                <div>
-                    <label className="font-bold text-gray-700">Email</label>
-                    <input name="email" type="email" className="w-full p-4 border-2 rounded-xl text-gray-900 bg-white" required />
-                </div>
-                <div>
-                    <label className="font-bold text-gray-700">Password</label>
-                    <input name="password" type="password" className="w-full p-4 border-2 rounded-xl text-gray-900 bg-white" required />
-                </div>
+              <div>
+                <label className="font-bold text-gray-700">Email</label>
+                <input name="email" type="email" className="w-full p-4 border-2 rounded-xl text-gray-900 bg-white" required />
+              </div>
+              <div>
+                <label className="font-bold text-gray-700">Password</label>
+                <input name="password" type="password" className="w-full p-4 border-2 rounded-xl text-gray-900 bg-white" required />
+              </div>
               <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg">Sign In</button>
             </form>
          </div>
@@ -284,30 +284,37 @@ export default function Home() {
       {!isOnline && ( <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 font-bold z-[200] animate-pulse">⚠️ YOU ARE OFFLINE. DO NOT PERFORM CHECK-INS.</div> )}
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-8">
         
-        {/* HEADER & STATS */}
-        <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-6 text-white">
-          <div><h1 className="text-4xl font-extrabold">AMOG Camp 2026</h1><p className="text-indigo-200">Registration & Help Desk</p></div>
-          <div className="flex gap-4">
-            <div className="bg-white/10 p-4 rounded-xl text-center border border-white/20 backdrop-blur-md">
-              <p className="text-xs uppercase opacity-70">Checked In</p><p className="text-2xl font-bold">{stats.checkedIn} <span className="text-sm opacity-50">/ {people.length}</span></p>
+        {/* HEADER & STATS (Mobile Optimized) */}
+        <div className="flex flex-col lg:flex-row justify-between items-center mb-6 md:mb-8 gap-6 text-white text-center lg:text-left">
+          <div>
+            <h1 className="text-2xl md:text-4xl font-extrabold">AMOG Camp 2026</h1>
+            <p className="text-indigo-200 text-sm md:text-base">Registration & Help Desk</p>
+          </div>
+          
+          <div className="grid grid-cols-2 md:flex gap-3 w-full md:w-auto">
+            <div className="bg-white/10 p-2 md:p-4 rounded-xl text-center border border-white/20 backdrop-blur-md col-span-2 md:col-span-1">
+              <p className="text-[10px] md:text-xs uppercase opacity-70">Checked In</p>
+              <p className="text-xl md:text-2xl font-bold">{stats.checkedIn} <span className="text-sm opacity-50">/ {people.length}</span></p>
             </div>
             
-            <div className="flex gap-2">
-               <div className="bg-green-600/30 p-4 rounded-xl text-center border border-green-500/30 backdrop-blur-md">
-                  <p className="text-xs uppercase text-green-300">Cash</p><p className="text-xl font-bold">₵{stats.totalCash}</p>
-               </div>
-               <div className="bg-blue-600/30 p-4 rounded-xl text-center border border-blue-500/30 backdrop-blur-md">
-                  <p className="text-xs uppercase text-blue-300">MoMo</p><p className="text-xl font-bold">₵{stats.totalMomo}</p>
-               </div>
+            <div className="bg-green-600/30 p-2 md:p-4 rounded-xl text-center border border-green-500/30 backdrop-blur-md">
+                <p className="text-[10px] md:text-xs uppercase text-green-300">Cash</p>
+                <p className="text-lg md:text-xl font-bold">₵{stats.totalCash}</p>
             </div>
-            <button onClick={() => supabase.auth.signOut()} className="bg-red-500/20 hover:bg-red-600/30 text-red-100 p-4 rounded-xl border border-red-500/30">Logout</button>
+            
+            <div className="bg-blue-600/30 p-2 md:p-4 rounded-xl text-center border border-blue-500/30 backdrop-blur-md">
+                <p className="text-[10px] md:text-xs uppercase text-blue-300">MoMo</p>
+                <p className="text-lg md:text-xl font-bold">₵{stats.totalMomo}</p>
+            </div>
+            
+            <button onClick={() => supabase.auth.signOut()} className="bg-red-500/20 hover:bg-red-600/30 text-red-100 p-2 md:p-4 rounded-xl border border-red-500/30 col-span-2 md:col-span-1 text-sm md:text-base">Logout</button>
           </div>
         </div>
 
-        {/* HOUSE STATS (NEW: Balance Checker) */}
-        <div className="grid grid-cols-4 gap-2 mb-8 opacity-80">
+        {/* HOUSE STATS (Grid Fix for Mobile) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-8 opacity-80 text-sm md:text-base">
           <div className="bg-red-500/20 text-red-100 text-center py-2 rounded font-bold border border-red-500/50">Red: {stats.red}</div>
           <div className="bg-blue-500/20 text-blue-100 text-center py-2 rounded font-bold border border-blue-500/50">Blue: {stats.blue}</div>
           <div className="bg-green-500/20 text-green-100 text-center py-2 rounded font-bold border border-green-500/50">Green: {stats.green}</div>
@@ -320,18 +327,20 @@ export default function Home() {
             <input
               type="text"
               placeholder="Search by name OR phone..."
-              className="flex-1 pl-6 pr-4 py-5 rounded-2xl bg-white/95 shadow-xl text-xl outline-none focus:ring-4 focus:ring-indigo-500/50"
+              className="flex-1 pl-6 pr-4 py-4 md:py-5 rounded-2xl bg-white/95 shadow-xl text-lg md:text-xl outline-none focus:ring-4 focus:ring-indigo-500/50"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <button onClick={downloadCSV} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-2xl font-bold shadow-xl flex items-center justify-center gap-2"><span>⬇ CSV</span></button>
-            <button onClick={() => setIsRegistering(true)} className="bg-white/90 backdrop-blur hover:bg-white text-indigo-900 px-8 py-4 rounded-2xl font-bold text-lg shadow-xl flex items-center justify-center gap-3 transform transition-all hover:-translate-y-1 border-l-8 border-indigo-500"><span className="text-3xl font-light text-indigo-500">+</span><span>New</span></button>
+            <div className="flex gap-2">
+                <button onClick={downloadCSV} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-2xl font-bold shadow-xl flex-1 md:flex-none flex items-center justify-center gap-2"><span>⬇ CSV</span></button>
+                <button onClick={() => setIsRegistering(true)} className="bg-white/90 backdrop-blur hover:bg-white text-indigo-900 px-8 py-4 rounded-2xl font-bold text-lg shadow-xl flex-1 md:flex-none flex items-center justify-center gap-3 transform transition-all hover:-translate-y-1 border-l-8 border-indigo-500"><span className="text-2xl md:text-3xl font-light text-indigo-500">+</span><span>New</span></button>
+            </div>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            <button onClick={() => setFilter('all')} className={`px-6 py-2 rounded-full font-bold transition-all ${filter === 'all' ? 'bg-white text-indigo-900 shadow-lg' : 'bg-white/10 text-white hover:bg-white/20'}`}>All</button>
-            <button onClick={() => setFilter('checked_in')} className={`px-6 py-2 rounded-full font-bold transition-all ${filter === 'checked_in' ? 'bg-green-500 text-white shadow-lg' : 'bg-white/10 text-white hover:bg-white/20'}`}>Checked In</button>
-            <button onClick={() => setFilter('owing')} className={`px-6 py-2 rounded-full font-bold transition-all ${filter === 'owing' ? 'bg-red-500 text-white shadow-lg' : 'bg-white/10 text-white hover:bg-white/20'}`}>Owe Money</button>
-            <button onClick={() => setFilter('paid')} className={`px-6 py-2 rounded-full font-bold transition-all ${filter === 'paid' ? 'bg-indigo-500 text-white shadow-lg' : 'bg-white/10 text-white hover:bg-white/20'}`}>Fully Paid</button>
+          <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
+            <button onClick={() => setFilter('all')} className={`px-6 py-2 rounded-full font-bold transition-all whitespace-nowrap ${filter === 'all' ? 'bg-white text-indigo-900 shadow-lg' : 'bg-white/10 text-white hover:bg-white/20'}`}>All</button>
+            <button onClick={() => setFilter('checked_in')} className={`px-6 py-2 rounded-full font-bold transition-all whitespace-nowrap ${filter === 'checked_in' ? 'bg-green-500 text-white shadow-lg' : 'bg-white/10 text-white hover:bg-white/20'}`}>Checked In</button>
+            <button onClick={() => setFilter('owing')} className={`px-6 py-2 rounded-full font-bold transition-all whitespace-nowrap ${filter === 'owing' ? 'bg-red-500 text-white shadow-lg' : 'bg-white/10 text-white hover:bg-white/20'}`}>Owe Money</button>
+            <button onClick={() => setFilter('paid')} className={`px-6 py-2 rounded-full font-bold transition-all whitespace-nowrap ${filter === 'paid' ? 'bg-indigo-500 text-white shadow-lg' : 'bg-white/10 text-white hover:bg-white/20'}`}>Fully Paid</button>
           </div>
         </div>
 
@@ -340,7 +349,7 @@ export default function Home() {
           {filteredPeople.map((person) => (
             <div key={person.id} className={`relative bg-white/90 backdrop-blur rounded-2xl p-6 shadow-lg border-l-8 transition-all hover:scale-[1.01] ${person.checked_in ? 'border-green-500' : 'border-indigo-500'}`}>
               {people.filter(p => p.full_name === person.full_name).length > 1 && (<div className="absolute top-2 right-2 bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold border border-red-200">Possible Duplicate</div>)}
-              <h2 className="text-2xl font-bold mb-1">{person.full_name}</h2>
+              <h2 className="text-xl md:text-2xl font-bold mb-1">{person.full_name}</h2>
               <p className="text-gray-500 font-medium mb-4 uppercase text-sm tracking-wide">{person.role}</p>
               {person.checked_in ? (
                 <div className="bg-green-100 p-3 rounded-xl border border-green-200">
@@ -355,38 +364,44 @@ export default function Home() {
               )}
             </div>
           ))}
-          {filteredPeople.length === 0 && (<p className="text-white text-center col-span-3 text-lg opacity-70 mt-10">No participants found matching your filter.</p>)}
+          {filteredPeople.length === 0 && (<p className="text-white text-center col-span-1 md:col-span-3 text-lg opacity-70 mt-10">No participants found matching your filter.</p>)}
         </div>
       </div>
 
-      {/* --- MODAL 1: NEW REGISTRATION (With Phone Validation) --- */}
+      {/* --- MODAL 1: NEW REGISTRATION (Mobile Optimized) --- */}
       {isRegistering && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in zoom-in-95">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden">
-            <div className="bg-gray-50 p-6 border-b border-gray-100 flex justify-between items-center"><h2 className="text-2xl font-extrabold text-gray-900">New Registration</h2><button onClick={() => setIsRegistering(false)} className="bg-gray-200 p-3 rounded-full hover:bg-gray-300 font-bold">✕</button></div>
-            <div className="p-8 space-y-5">
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-in zoom-in-95">
+          <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden h-[90vh] md:h-auto flex flex-col">
+            <div className="bg-gray-50 p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
+                <h2 className="text-2xl font-extrabold text-gray-900">New Registration</h2>
+                <button onClick={() => setIsRegistering(false)} className="bg-gray-200 p-3 rounded-full hover:bg-gray-300 font-bold">✕</button>
+            </div>
+            <div className="p-6 md:p-8 space-y-5 overflow-y-auto">
               <div><label className="font-bold block mb-1 text-gray-700">Full Name</label><input type="text" className="w-full p-4 border-2 rounded-xl text-lg outline-none focus:border-indigo-500" placeholder="John Doe" value={newReg.full_name} onChange={e => setNewReg({...newReg, full_name: e.target.value})} /></div>
               <div><label className="font-bold block mb-1 text-gray-700">Phone Number (10 digits)</label><input type="text" className="w-full p-4 border-2 rounded-xl text-lg outline-none focus:border-indigo-500" placeholder="055..." value={newReg.phone_number} onChange={e => setNewReg({...newReg, phone_number: e.target.value})} /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="font-bold block mb-1 text-gray-700">Role</label><select className="w-full p-4 border-2 rounded-xl bg-white outline-none focus:border-indigo-500" value={newReg.role} onChange={e => setNewReg({...newReg, role: e.target.value})}><option value="Member">Member</option><option value="Leader">Leader</option><option value="Pastor">Pastor</option><option value="Guest">Guest</option></select></div>
                 <div><label className="font-bold block mb-1 text-gray-700">Branch</label><input type="text" className="w-full p-4 border-2 rounded-xl outline-none focus:border-indigo-500" placeholder="Main" value={newReg.branch} onChange={e => setNewReg({...newReg, branch: e.target.value})} /></div>
               </div>
-              <button onClick={handleNewRegistration} disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold text-lg mt-4 shadow-lg transform transition-all hover:-translate-y-1">{processing ? 'Saving...' : 'Register & Check In'}</button>
+              <button onClick={handleNewRegistration} disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold text-lg mt-4 shadow-lg">{processing ? 'Saving...' : 'Register & Check In'}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* --- MODAL 2: CHECK IN --- */}
+      {/* --- MODAL 2: CHECK IN (Mobile Optimized) --- */}
       {selectedPerson && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in zoom-in-95">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden">
-            <div className="bg-gray-50 p-8 border-b border-gray-100 flex justify-between items-center">
-              <div><h2 className="text-3xl font-extrabold text-gray-900">{selectedPerson.full_name}</h2><div className="flex gap-2 mt-2"><span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-bold uppercase">{selectedPerson.role}</span></div></div>
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-in zoom-in-95">
+          <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden h-[85vh] md:h-auto flex flex-col">
+            <div className="bg-gray-50 p-6 md:p-8 border-b border-gray-100 flex justify-between items-center shrink-0">
+              <div>
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 truncate max-w-[200px] md:max-w-md">{selectedPerson.full_name}</h2>
+                  <div className="flex gap-2 mt-2"><span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-bold uppercase">{selectedPerson.role}</span></div>
+              </div>
               <button onClick={() => setSelectedPerson(null)} className="bg-gray-200 p-3 rounded-full hover:bg-gray-300 font-bold">✕</button>
             </div>
-            <div className="p-8 space-y-6">
-              <div className="grid grid-cols-2 gap-6">
+            <div className="p-6 md:p-8 space-y-6 overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div><label className="block text-sm font-extrabold text-gray-500 mb-2 uppercase">Payment Method</label><select className="w-full p-3 border-2 rounded-xl font-bold bg-white" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option value="Cash">💵 Cash</option><option value="MoMo">📱 MoMo</option></select></div>
                 <div><label className="block text-sm font-extrabold text-gray-500 mb-2 uppercase">Gender</label><div className="flex gap-2"><button onClick={() => setGender('Male')} className={`flex-1 py-3 rounded-xl font-bold border-2 ${gender === 'Male' ? 'border-indigo-600 bg-indigo-50 text-indigo-800' : 'border-gray-200 text-gray-400'}`}>Male</button><button onClick={() => setGender('Female')} className={`flex-1 py-3 rounded-xl font-bold border-2 ${gender === 'Female' ? 'border-pink-500 bg-pink-50 text-pink-800' : 'border-gray-200 text-gray-400'}`}>Female</button></div></div>
               </div>
@@ -395,14 +410,14 @@ export default function Home() {
                 <div className="relative">
                   <span className="absolute left-6 top-5 text-gray-400 text-2xl font-bold">₵</span>
                   <input type="number" className={`w-full pl-16 pr-6 py-5 border-4 rounded-2xl text-4xl font-bold text-gray-900 outline-none transition-all ${Number(amountPaid) >= targetFee ? 'border-green-500 bg-green-50' : 'border-gray-200 focus:border-black'}`} value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} placeholder="0" />
-                  {Number(amountPaid) < targetFee ? (<div className="absolute right-6 top-6 text-red-500 font-bold">Owes: ₵{targetFee - (Number(amountPaid) || 0)}</div>) : (<div className="absolute right-6 top-6 text-green-600 font-bold">Fully Paid ✓</div>)}
+                  {Number(amountPaid) < targetFee ? (<div className="absolute right-6 top-6 text-red-500 font-bold text-sm md:text-base">Owes: ₵{targetFee - (Number(amountPaid) || 0)}</div>) : (<div className="absolute right-6 top-6 text-green-600 font-bold text-sm md:text-base">Fully Paid ✓</div>)}
                 </div>
               </div>
             </div>
-            <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4">
-               {SUPER_ADMINS.includes(session?.user?.email) && (<button onClick={handleDelete} className="px-6 py-4 bg-red-100 text-red-700 hover:bg-red-200 rounded-2xl font-bold transition-all" title="Delete User">Delete</button>)}
+            <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4 shrink-0">
+               {SUPER_ADMINS.includes(session?.user?.email) && (<button onClick={handleDelete} className="px-4 md:px-6 py-4 bg-red-100 text-red-700 hover:bg-red-200 rounded-2xl font-bold transition-all" title="Delete User">Del</button>)}
               <button onClick={() => setSelectedPerson(null)} className="flex-1 py-4 font-bold text-gray-500 hover:text-gray-800">Cancel</button>
-              <button onClick={handleCheckIn} disabled={processing} className="flex-[2] py-4 bg-black hover:bg-gray-800 text-white rounded-2xl text-xl font-bold shadow-xl transform transition-all hover:-translate-y-1">{processing ? 'Processing...' : 'CONFIRM CHECK-IN'}</button>
+              <button onClick={handleCheckIn} disabled={processing} className="flex-[2] py-4 bg-black hover:bg-gray-800 text-white rounded-2xl text-xl font-bold shadow-xl">{processing ? '...' : 'CONFIRM'}</button>
             </div>
           </div>
         </div>
