@@ -157,7 +157,7 @@ export default function Home() {
     
     const paidValue = Number(amountPaid) || 0;
     const balance = targetFee - paidValue;
-    const status = balance <= 0 ? 'Paid' : 'Partial';
+    const status = balance <= 0 ? 'Paid' : 'Partial'; // Strict status check
     
     // HOUSE ALLOCATION
     const currentSchool = selectedPerson.grace_school;
@@ -172,10 +172,17 @@ export default function Home() {
     else {
       await logAction('Check-In', `Checked in ${selectedPerson.full_name}. Paid: ${paidValue} via ${paymentMethod}`);
       await fetchPeople();
+      
       const message = `Calvary greetings ${selectedPerson.full_name}! ✝️%0A%0AWelcome to the *AMOG CAMP MEETING 2026*. We are expecting a mighty move of God! 🔥%0A%0A*Your Registration Details:*%0A🏠 *Grace House:* ${randomSchool}%0A💰 *Payment:* ${status} (Paid ₵${paidValue})%0A%0AGod bless you as you settle in!`;
       const waLink = `https://wa.me/233${selectedPerson.phone_number?.substring(1)}?text=${message}`;
       window.open(waLink, '_blank');
-      showToast(`Checked in ${selectedPerson.full_name}!`, 'success');
+
+      if (status === 'Paid') {
+          showToast(`Checked in ${selectedPerson.full_name}!`, 'success');
+      } else {
+          showToast(`Checked in ${selectedPerson.full_name} (OWING MONEY)`, 'warning');
+      }
+      
       setSelectedPerson(null);
     }
     setProcessing(false);
@@ -347,29 +354,43 @@ export default function Home() {
 
         {/* PEOPLE LIST (Responsive Grid) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 pb-20">
-          {filteredPeople.map((person) => (
-            <div key={person.id} className={`bg-white rounded-2xl p-6 shadow-lg border-l-8 transition-all hover:scale-[1.01] ${person.checked_in ? 'border-green-500' : 'border-indigo-500'}`}>
-              <div className="flex justify-between items-start mb-2">
-                 <div>
-                    <h2 className="text-xl font-bold text-gray-900">{person.full_name}</h2>
-                    <p className="text-gray-500 text-sm font-semibold uppercase">{person.role} • {person.branch}</p>
-                 </div>
-                 {people.filter(p => p.full_name === person.full_name).length > 1 && (<span className="bg-red-100 text-red-800 text-[10px] px-2 py-1 rounded font-bold border border-red-200">DUPLICATE?</span>)}
-              </div>
-              
-              {person.checked_in ? (
-                 <div className="bg-green-50 p-3 rounded-xl border border-green-100 mt-2">
-                    <p className="font-bold text-green-900 text-lg">{person.grace_school}</p>
-                    <div className="flex justify-between items-center text-green-700 text-sm font-bold">
-                       <span>Paid: ₵{person.amount_paid}</span>
-                       {person.payment_status === 'Paid' && <span>🍽️ MEAL TICKET</span>}
-                    </div>
-                 </div>
-              ) : (
-                <button onClick={() => openCheckIn(person)} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition-all mt-2">Check In</button>
-              )}
-            </div>
-          ))}
+          {filteredPeople.map((person) => {
+            const isPaid = person.payment_status === 'Paid';
+            const isCheckedIn = person.checked_in;
+            // Determine Border Color
+            let borderClass = 'border-indigo-500';
+            if (isCheckedIn) {
+                borderClass = isPaid ? 'border-green-500' : 'border-yellow-500';
+            }
+
+            return (
+                <div key={person.id} className={`bg-white rounded-2xl p-6 shadow-lg border-l-8 transition-all hover:scale-[1.01] ${borderClass}`}>
+                  <div className="flex justify-between items-start mb-2">
+                     <div>
+                        <h2 className="text-xl font-bold text-gray-900">{person.full_name}</h2>
+                        <p className="text-gray-500 text-sm font-semibold uppercase">{person.role} • {person.branch}</p>
+                     </div>
+                     {people.filter(p => p.full_name === person.full_name).length > 1 && (<span className="bg-red-100 text-red-800 text-[10px] px-2 py-1 rounded font-bold border border-red-200">DUPLICATE?</span>)}
+                  </div>
+                  
+                  {isCheckedIn ? (
+                     <div className={`p-3 rounded-xl border mt-2 ${isPaid ? 'bg-green-50 border-green-100' : 'bg-yellow-50 border-yellow-100'}`}>
+                        <p className={`font-bold text-lg ${isPaid ? 'text-green-900' : 'text-yellow-900'}`}>{person.grace_school}</p>
+                        <div className={`flex justify-between items-center text-sm font-bold ${isPaid ? 'text-green-700' : 'text-yellow-800'}`}>
+                           <span>Paid: ₵{person.amount_paid}</span>
+                           {isPaid ? (
+                               <span>🍽️ MEAL TICKET</span>
+                           ) : (
+                               <span className="text-red-600 bg-red-100 px-2 py-0.5 rounded">⚠️ OWING</span>
+                           )}
+                        </div>
+                     </div>
+                  ) : (
+                    <button onClick={() => openCheckIn(person)} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition-all mt-2">Check In</button>
+                  )}
+                </div>
+            );
+          })}
           {filteredPeople.length === 0 && (<p className="text-white text-center col-span-1 md:col-span-3 text-lg opacity-60 mt-10">No matching records found.</p>)}
         </div>
       </div>
