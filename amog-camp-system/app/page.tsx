@@ -157,30 +157,39 @@ export default function Home() {
     
     const paidValue = Number(amountPaid) || 0;
     const balance = targetFee - paidValue;
-    const status = balance <= 0 ? 'Paid' : 'Partial'; // Strict status check
     
-    // HOUSE ALLOCATION
+    // NEW STRICT LOGIC:
+    const isFullyPaid = balance <= 0;
+    const status = isFullyPaid ? 'Paid' : 'Partial'; 
+    const shouldCheckIn = isFullyPaid; // Only check in if fully paid
+    
+    // HOUSE ALLOCATION (Only assign if fully paying and checking in)
     const currentSchool = selectedPerson.grace_school;
-    const randomSchool = currentSchool || GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
+    const randomSchool = currentSchool || (shouldCheckIn ? GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)] : null);
 
     const { error } = await supabase.from('participants').update({
-      gender: gender, amount_paid: paidValue, payment_status: status, payment_method: paymentMethod,
-      grace_school: randomSchool, checked_in: true, checked_in_at: new Date().toISOString(), checked_in_by: session?.user?.email
+      gender: gender, 
+      amount_paid: paidValue, 
+      payment_status: status, 
+      payment_method: paymentMethod,
+      grace_school: randomSchool, 
+      checked_in: shouldCheckIn, // This controls the green card
+      checked_in_at: shouldCheckIn ? new Date().toISOString() : null, 
+      checked_in_by: session?.user?.email
     }).eq('id', selectedPerson.id);
 
     if (error) { showToast("Database Error!", 'error'); } 
     else {
-      await logAction('Check-In', `Checked in ${selectedPerson.full_name}. Paid: ${paidValue} via ${paymentMethod}`);
+      await logAction(shouldCheckIn ? 'Check-In' : 'Partial Payment', `Updated ${selectedPerson.full_name}. Paid: ${paidValue} (Total)`);
       await fetchPeople();
       
-      const message = `Calvary greetings ${selectedPerson.full_name}! ✝️%0A%0AWelcome to the *AMOG CAMP MEETING 2026*. We are expecting a mighty move of God! 🔥%0A%0A*Your Registration Details:*%0A🏠 *Grace House:* ${randomSchool}%0A💰 *Payment:* ${status} (Paid ₵${paidValue})%0A%0AGod bless you as you settle in!`;
-      const waLink = `https://wa.me/233${selectedPerson.phone_number?.substring(1)}?text=${message}`;
-      window.open(waLink, '_blank');
-
-      if (status === 'Paid') {
+      if (shouldCheckIn) {
+          const message = `Calvary greetings ${selectedPerson.full_name}! ✝️%0A%0AWelcome to the *AMOG CAMP MEETING 2026*. We are expecting a mighty move of God! 🔥%0A%0A*Your Registration Details:*%0A🏠 *Grace House:* ${randomSchool}%0A💰 *Payment:* ${status} (Paid ₵${paidValue})%0A%0AGod bless you as you settle in!`;
+          const waLink = `https://wa.me/233${selectedPerson.phone_number?.substring(1)}?text=${message}`;
+          window.open(waLink, '_blank');
           showToast(`Checked in ${selectedPerson.full_name}!`, 'success');
       } else {
-          showToast(`Checked in ${selectedPerson.full_name} (OWING MONEY)`, 'warning');
+          showToast(`Payment updated for ${selectedPerson.full_name}. Still owing.`, 'warning');
       }
       
       setSelectedPerson(null);
@@ -355,13 +364,11 @@ export default function Home() {
         {/* PEOPLE LIST (Responsive Grid) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 pb-20">
           {filteredPeople.map((person) => {
-            const isPaid = person.payment_status === 'Paid';
-            const isCheckedIn = person.checked_in;
-            // Determine Border Color
+            const isPartial = !person.checked_in && person.amount_paid > 0;
+            // Border Logic: Green (Checked In), Orange (Partial), Indigo (Fresh)
             let borderClass = 'border-indigo-500';
-            if (isCheckedIn) {
-                borderClass = isPaid ? 'border-green-500' : 'border-yellow-500';
-            }
+            if (person.checked_in) borderClass = 'border-green-500';
+            else if (isPartial) borderClass = 'border-orange-500';
 
             return (
                 <div key={person.id} className={`bg-white rounded-2xl p-6 shadow-lg border-l-8 transition-all hover:scale-[1.01] ${borderClass}`}>
@@ -373,20 +380,25 @@ export default function Home() {
                      {people.filter(p => p.full_name === person.full_name).length > 1 && (<span className="bg-red-100 text-red-800 text-[10px] px-2 py-1 rounded font-bold border border-red-200">DUPLICATE?</span>)}
                   </div>
                   
-                  {isCheckedIn ? (
-                     <div className={`p-3 rounded-xl border mt-2 ${isPaid ? 'bg-green-50 border-green-100' : 'bg-yellow-50 border-yellow-100'}`}>
-                        <p className={`font-bold text-lg ${isPaid ? 'text-green-900' : 'text-yellow-900'}`}>{person.grace_school}</p>
-                        <div className={`flex justify-between items-center text-sm font-bold ${isPaid ? 'text-green-700' : 'text-yellow-800'}`}>
+                  {person.checked_in ? (
+                     <div className="bg-green-50 p-3 rounded-xl border border-green-100 mt-2">
+                        <p className="font-bold text-green-900 text-lg">{person.grace_school}</p>
+                        <div className="flex justify-between items-center text-green-700 text-sm font-bold">
                            <span>Paid: ₵{person.amount_paid}</span>
-                           {isPaid ? (
-                               <span>🍽️ MEAL TICKET</span>
-                           ) : (
-                               <span className="text-red-600 bg-red-100 px-2 py-0.5 rounded">⚠️ OWING</span>
-                           )}
+                           <span>🍽️ MEAL TICKET</span>
                         </div>
                      </div>
                   ) : (
-                    <button onClick={() => openCheckIn(person)} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition-all mt-2">Check In</button>
+                    <div className="mt-2">
+                         {isPartial && (
+                            <div className="mb-2 text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg inline-block">
+                                ⚠️ Paid: ₵{person.amount_paid} (Owes ₵{400 - person.amount_paid})
+                            </div>
+                         )}
+                         <button onClick={() => openCheckIn(person)} className={`w-full py-3 text-white rounded-xl font-bold shadow-md transition-all ${isPartial ? 'bg-orange-500 hover:bg-orange-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+                             {isPartial ? 'Pay Balance' : 'Check In'}
+                         </button>
+                    </div>
                   )}
                 </div>
             );
@@ -452,7 +464,11 @@ export default function Home() {
             <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4">
                {SUPER_ADMINS.includes(session?.user?.email) && (<button onClick={handleDelete} className="px-6 py-4 bg-red-100 text-red-700 hover:bg-red-200 rounded-2xl font-bold transition-all" title="Delete User">Delete</button>)}
                <button onClick={() => setSelectedPerson(null)} className="flex-1 py-4 font-bold text-gray-500 hover:text-gray-800">Cancel</button>
-               <button onClick={handleCheckIn} disabled={processing} className="flex-[2] py-4 bg-black hover:bg-gray-800 text-white rounded-2xl text-xl font-bold shadow-xl transition-transform active:scale-95">{processing ? 'Processing...' : 'CONFIRM CHECK-IN'}</button>
+               
+               {/* DYNAMIC CONFIRM BUTTON */}
+               <button onClick={handleCheckIn} disabled={processing} className={`flex-[2] py-4 text-white rounded-2xl text-xl font-bold shadow-xl transition-transform active:scale-95 ${Number(amountPaid) >= targetFee ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-500 hover:bg-orange-600'}`}>
+                   {processing ? 'Processing...' : (Number(amountPaid) >= targetFee ? 'CHECK IN & PRINT' : 'SAVE PARTIAL PAYMENT')}
+               </button>
             </div>
           </div>
         </div>
