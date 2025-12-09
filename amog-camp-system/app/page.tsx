@@ -158,12 +158,12 @@ export default function Home() {
     const paidValue = Number(amountPaid) || 0;
     const balance = targetFee - paidValue;
     
-    // NEW STRICT LOGIC:
+    // STRICT LOGIC: ONLY Check In if FULLY PAID
     const isFullyPaid = balance <= 0;
     const status = isFullyPaid ? 'Paid' : 'Partial'; 
-    const shouldCheckIn = isFullyPaid; // Only check in if fully paid
+    const shouldCheckIn = isFullyPaid; // If not fully paid, NO check in.
     
-    // HOUSE ALLOCATION (Only assign if fully paying and checking in)
+    // HOUSE ALLOCATION (Only assign if fully paying)
     const currentSchool = selectedPerson.grace_school;
     const randomSchool = currentSchool || (shouldCheckIn ? GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)] : null);
 
@@ -173,7 +173,7 @@ export default function Home() {
       payment_status: status, 
       payment_method: paymentMethod,
       grace_school: randomSchool, 
-      checked_in: shouldCheckIn, // This controls the green card
+      checked_in: shouldCheckIn, 
       checked_in_at: shouldCheckIn ? new Date().toISOString() : null, 
       checked_in_by: session?.user?.email
     }).eq('id', selectedPerson.id);
@@ -188,11 +188,13 @@ export default function Home() {
           const waLink = `https://wa.me/233${selectedPerson.phone_number?.substring(1)}?text=${message}`;
           window.open(waLink, '_blank');
           showToast(`Checked in ${selectedPerson.full_name}!`, 'success');
+          setSelectedPerson(null); // Close modal only on success
       } else {
-          showToast(`Payment updated for ${selectedPerson.full_name}. Still owing.`, 'warning');
+          showToast(`Saved partial payment. User still owes ₵${balance}.`, 'warning');
+          // We do NOT close the modal automatically here, so they see the result, or we can close it. 
+          // Let's close it to be clean.
+          setSelectedPerson(null);
       }
-      
-      setSelectedPerson(null);
     }
     setProcessing(false);
   }
@@ -428,7 +430,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* --- MODAL: CHECK IN (Centered) --- */}
+      {/* --- MODAL: CHECK IN (Centered & Smart Button) --- */}
       {selectedPerson && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in zoom-in-95">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden">
@@ -465,9 +467,25 @@ export default function Home() {
                {SUPER_ADMINS.includes(session?.user?.email) && (<button onClick={handleDelete} className="px-6 py-4 bg-red-100 text-red-700 hover:bg-red-200 rounded-2xl font-bold transition-all" title="Delete User">Delete</button>)}
                <button onClick={() => setSelectedPerson(null)} className="flex-1 py-4 font-bold text-gray-500 hover:text-gray-800">Cancel</button>
                
-               {/* DYNAMIC CONFIRM BUTTON */}
-               <button onClick={handleCheckIn} disabled={processing} className={`flex-[2] py-4 text-white rounded-2xl text-xl font-bold shadow-xl transition-transform active:scale-95 ${Number(amountPaid) >= targetFee ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-500 hover:bg-orange-600'}`}>
-                   {processing ? 'Processing...' : (Number(amountPaid) >= targetFee ? 'CHECK IN & PRINT' : 'SAVE PARTIAL PAYMENT')}
+               {/* SMART BUTTON LOGIC */}
+               <button 
+                 onClick={handleCheckIn} 
+                 disabled={processing} 
+                 className={`flex-[2] py-4 text-white rounded-2xl text-xl font-bold shadow-xl transition-transform active:scale-95 ${
+                    Number(amountPaid) >= targetFee 
+                    ? 'bg-green-600 hover:bg-green-700'  // Ready to Check In
+                    : Number(amountPaid) > 0 
+                      ? 'bg-orange-500 hover:bg-orange-600' // Partial
+                      : 'bg-black hover:bg-gray-800' // Empty
+                 }`}
+               >
+                   {processing 
+                      ? 'Processing...' 
+                      : (Number(amountPaid) >= targetFee 
+                          ? 'CHECK IN & PRINT' 
+                          : (Number(amountPaid) > 0 ? 'SAVE PARTIAL PAYMENT' : 'ENTER AMOUNT')
+                        )
+                   }
                </button>
             </div>
           </div>
