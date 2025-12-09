@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 // --- PASTE YOUR KEYS HERE ---
 const supabaseUrl = "https://ujbhfbpigvwkoygytvww.supabase.co";
