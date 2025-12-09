@@ -56,22 +56,30 @@ function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: { dailyAudit: any
                     <button onClick={onClose} className="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full text-white">✕</button>
                 </div>
                 <div className="p-6 space-y-4">
+                    
+                    {/* TOTAL REVENUE */}
                     <div className="bg-emerald-900/40 p-4 rounded-xl border border-emerald-500/30 text-center">
                         <p className="text-sm uppercase text-emerald-400 font-bold tracking-widest">Gross Revenue (Today)</p>
                         <p className="text-4xl font-extrabold text-emerald-100">₵{todaysTotal}</p>
                         <p className="text-xs text-slate-400 mt-1">{dailyAudit.count} total transactions recorded</p>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
+                        {/* CASH POCKET */}
                         <div className="bg-black/30 p-4 rounded-xl border border-white/10">
                             <p className="text-sm uppercase text-slate-400 font-bold">Cash Pocket</p>
                             <p className="text-3xl font-extrabold text-white">₵{dailyAudit.cash}</p>
                         </div>
+                        {/* MOMO POCKET */}
                         <div className="bg-black/30 p-4 rounded-xl border border-white/10">
                             <p className="text-sm uppercase text-slate-400 font-bold">MoMo Pocket</p>
                             <p className="text-3xl font-extrabold text-white">₵{dailyAudit.momo}</p>
                         </div>
                     </div>
-                    <p className="text-xs text-slate-500 pt-2 text-center">*Includes all transactions logged since midnight.*</p>
+
+                    <p className="text-xs text-slate-500 pt-2 text-center">
+                        *This report includes all transactions logged since midnight.*
+                    </p>
                 </div>
             </div>
         </div>
@@ -102,6 +110,10 @@ export default function Home() {
   const [processing, setProcessing] = useState(false);
   const [gender, setGender] = useState('Male');
   
+  // CONFIRMATION STATE
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [pendingTransaction, setPendingTransaction] = useState<any>(null);
+
   const [newReg, setNewReg] = useState({ full_name: '', phone_number: '', role: 'Member', branch: 'Main', t_shirt: 'L', invited_by: '' });
   const [toast, setToast] = useState<{msg: string, type: 'success' | 'error' | 'warning'} | null>(null);
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -121,10 +133,15 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // --- AUDIT LOGIC ---
   async function runDailyAudit() {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
-    let cashSum = 0, momoSum = 0, paymentCount = 0;
+
+    let cashSum = 0;
+    let momoSum = 0;
+    let paymentCount = 0;
+    
     if (data) {
         data.forEach(log => {
             const amountMatch = log.details.match(/Added ₵(\d+)/);
@@ -141,6 +158,7 @@ export default function Home() {
     setShowDailyAuditModal(true); 
   }
 
+  // --- DATA FETCHING ---
   async function fetchPeople() {
     if (supabaseUrl.includes("PASTE_YOUR")) return;
     const { data } = await supabase.from('participants').select('*').order('full_name');
@@ -199,6 +217,7 @@ export default function Home() {
     showToast("Exported", "success");
   };
 
+  // --- CHECK IN FLOW ---
   const openCheckIn = (person: any) => {
     setSelectedPerson(person);
     const isLeader = person.role?.toLowerCase().includes('leader') || person.role?.toLowerCase().includes('pastor');
@@ -206,21 +225,19 @@ export default function Home() {
     setTopUpAmount(''); 
     setPaymentMethod('Cash'); 
     setGender(person.gender || 'Male');
+    setIsConfirming(false); 
+    setPendingTransaction(null);
   };
 
-  // --- 1. RECORD PAYMENT ONLY ---
-  async function handleRecordPayment() {
-    if (!isOnline) { showToast("Offline mode.", "error"); return; }
+  const reviewTransaction = () => {
     const amount = Number(topUpAmount);
-
+    
+    // BLOCK INVALID AMOUNTS
     if (isNaN(amount) || amount <= 0) {
-        showToast("Please enter a valid amount.", "warning");
+        showToast("Please enter a valid amount", "warning");
         return;
     }
 
-    setProcessing(true);
-    
-    // Update Pockets
     const currentCash = selectedPerson.cash_amount || 0;
     const currentMoMo = selectedPerson.momo_amount || 0;
     let newCash = currentCash;
@@ -231,73 +248,67 @@ export default function Home() {
 
     const totalPaid = newCash + newMoMo;
     const balance = targetFee - totalPaid;
-    const status = balance <= 0 ? 'Paid' : 'Partial';
-
-    // Update DB (Money Only - No Check In)
-    const { error } = await supabase.from('participants').update({
-        gender: gender, 
-        amount_paid: totalPaid,
-        cash_amount: newCash,
-        momo_amount: newMoMo,
-        payment_status: status
-    }).eq('id', selectedPerson.id);
-
-    if (error) { showToast("Error: " + error.message, 'error'); } 
-    else {
-        await logAction('Payment Received', `Recorded ₵${amount} via ${paymentMethod}. New Total: ₵${totalPaid}.`);
-        await fetchPeople();
-        showToast(`Payment of ₵${amount} recorded!`, 'success');
-        
-        // Update local state instantly so Check-In button unlocks
-        setSelectedPerson(prev => ({
-            ...prev,
-            amount_paid: totalPaid,
-            cash_amount: newCash,
-            momo_amount: newMoMo,
-            payment_status: status
-        }));
-        setTopUpAmount(''); // Clear input
-    }
-    setProcessing(false);
-  }
-
-  // --- 2. CHECK IN ONLY ---
-  async function handleFinalCheckIn() {
-    if (!isOnline) { showToast("Offline mode.", "error"); return; }
+    const isFullyPaid = balance <= 0;
+    const status = isFullyPaid ? 'Paid' : 'Partial'; 
+    const shouldCheckIn = isFullyPaid; 
     
-    // Safety Check
-    if (selectedPerson.amount_paid < targetFee) {
-        showToast("Cannot Check In: Payment Incomplete.", "error");
-        return;
-    }
-
-    setProcessing(true);
-    
-    // Assign Random House if they don't have one
+    // --- RANDOM SCHOOL ALLOCATION (FIXED) ---
     const randomSchool = selectedPerson.grace_school || GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
 
+    setPendingTransaction({
+        newAmount: amount,
+        paymentMethod,
+        newCash,
+        newMoMo,
+        totalPaid,
+        balance,
+        status,
+        shouldCheckIn,
+        randomSchool
+    });
+
+    setIsConfirming(true);
+  };
+
+  const confirmAndSave = async () => {
+    if (!isOnline) { showToast("Offline mode.", "error"); return; }
+    if (!pendingTransaction) return;
+
+    setProcessing(true);
+    const pt = pendingTransaction;
+
     const { error } = await supabase.from('participants').update({
-        grace_school: randomSchool, 
-        checked_in: true, 
-        checked_in_at: new Date().toISOString(), 
-        checked_in_by: session?.user?.email
+      gender: gender, 
+      amount_paid: pt.totalPaid,
+      cash_amount: pt.newCash,
+      momo_amount: pt.newMoMo,
+      payment_status: pt.status, 
+      grace_school: pt.randomSchool, 
+      checked_in: pt.shouldCheckIn, 
+      checked_in_at: pt.shouldCheckIn ? new Date().toISOString() : null, 
+      checked_in_by: session?.user?.email
     }).eq('id', selectedPerson.id);
 
     if (error) { showToast("Error: " + error.message, 'error'); } 
     else {
-        await logAction('Check-In', `Checked in ${selectedPerson.full_name}. House: ${randomSchool}`);
-        await fetchPeople();
-        
-        const message = `Calvary greetings ${selectedPerson.full_name}! ✝️%0A%0AWelcome to AMOG 2026.%0A%0A*Registration Complete:*%0A🏠 *House:* ${randomSchool}%0A💰 *Total Paid:* ₵${selectedPerson.amount_paid}%0A%0AGod bless you!`;
-        const waLink = `https://wa.me/233${selectedPerson.phone_number?.substring(1)}?text=${message}`;
-        window.open(waLink, '_blank');
-        
-        showToast(`Checked In Successfully!`, 'success');
-        setSelectedPerson(null);
+      const logDetails = `Added ₵${pt.newAmount} via ${pt.paymentMethod}. Total: ₵${pt.totalPaid}. Status: ${pt.status}`;
+      await logAction(pt.shouldCheckIn ? 'Check-In Payment' : 'Partial Payment', logDetails);
+      await fetchPeople();
+      
+      if (pt.shouldCheckIn) {
+          const message = `Calvary greetings ${selectedPerson.full_name}! ✝️%0A%0AWelcome to AMOG 2026.%0A%0A*Registration Complete:*%0A🏠 *House:* ${pt.randomSchool}%0A💰 *Total Paid:* ₵${pt.totalPaid}%0A%0AGod bless you!`;
+          const waLink = `https://wa.me/233${selectedPerson.phone_number?.substring(1)}?text=${message}`;
+          window.open(waLink, '_blank');
+          showToast(`Checked In: ${selectedPerson.full_name}`, 'success');
+      } else {
+          showToast(`Saved. Owing: ₵${pt.balance}`, 'warning');
+      }
+      setSelectedPerson(null);
     }
     setProcessing(false);
   }
 
+  // --- NEW REGISTRATION ---
   async function handleNewRegistration() {
     if (!isOnline) { showToast("Offline.", "error"); return; }
     if (newReg.phone_number.length < 10) { showToast("Invalid Phone", "error"); return; }
@@ -306,7 +317,7 @@ export default function Home() {
     const existing = people.find(p => p.phone_number === newReg.phone_number);
     if (existing) { showToast(`${existing.full_name} exists!`, 'error'); setProcessing(false); return; }
 
-    // Assign house immediately on registration
+    // --- RANDOM SCHOOL ALLOCATION (ON REGISTER) ---
     const randomSchool = GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
 
     const { data, error } = await supabase.from('participants').insert([{
@@ -361,6 +372,7 @@ export default function Home() {
     checkedIn: people.filter(p => p.checked_in).length, 
     totalCash: people.reduce((sum, p) => sum + (p.cash_amount || 0), 0),
     totalMomo: people.reduce((sum, p) => sum + (p.momo_amount || 0), 0),
+    // --- GRACE SCHOOL COUNTS ---
     red: people.filter(p => p.grace_school === 'Red House').length,
     blue: people.filter(p => p.grace_school === 'Blue House').length,
     green: people.filter(p => p.grace_school === 'Green House').length,
@@ -371,14 +383,30 @@ export default function Home() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative font-sans overflow-hidden">
          <style>{globalStyles}</style>
-         <div className="absolute inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-purple-900/80 to-black/90 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover" alt="Background" /></div>
+         <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-purple-900/80 to-black/90 z-10"></div>
+            <img src="/camp-bg.png" className="w-full h-full object-cover" alt="Background" />
+         </div>
+         
          <div className="relative z-20 w-full max-w-md p-8 mx-4">
             <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl">
-                <div className="text-center mb-10"><h1 className="text-5xl font-extrabold text-white tracking-tight drop-shadow-lg">AMOG <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">2026</span></h1><p className="text-blue-200 mt-4 font-medium tracking-wide uppercase text-xs">Official Help Desk Portal</p></div>
+                <div className="text-center mb-10">
+                    <h1 className="text-5xl font-extrabold text-white tracking-tight drop-shadow-lg">AMOG <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">2026</span></h1>
+                    <div className="h-1 w-20 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mt-4 rounded-full"></div>
+                    <p className="text-blue-200 mt-4 font-medium tracking-wide uppercase text-xs">Official Help Desk Portal</p>
+                </div>
                 <form onSubmit={handleLogin} method="POST" className="space-y-6">
-                  <div><label className="text-xs font-bold text-blue-200 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label><input name="email" type="email" className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter email address" required /></div>
-                  <div><label className="text-xs font-bold text-blue-200 uppercase ml-1 mb-2 block tracking-wider">Password</label><input name="password" type="password" className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="••••••••" required /></div>
-                  <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg">Sign In</button>
+                  <div>
+                    <label className="text-xs font-bold text-blue-200 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label>
+                    <input name="email" type="email" className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter email address" required />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-blue-200 uppercase ml-1 mb-2 block tracking-wider">Password</label>
+                    <input name="password" type="password" className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="••••••••" required />
+                  </div>
+                  <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/50 transition-all transform hover:scale-[1.02] tracking-wide">
+                    Sign In
+                  </button>
                 </form>
             </div>
          </div>
@@ -409,12 +437,26 @@ export default function Home() {
           </div>
         </div>
 
+        {/* --- GRACE SCHOOL COUNTER (NEWLY ADDED) --- */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-red-900/30 border border-red-500/30 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-red-400 font-bold tracking-wider">Red House</p><p className="text-xl font-bold text-white">{stats.red}</p></div>
-            <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-blue-400 font-bold tracking-wider">Blue House</p><p className="text-xl font-bold text-white">{stats.blue}</p></div>
-            <div className="bg-emerald-900/30 border border-emerald-500/30 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-emerald-400 font-bold tracking-wider">Green House</p><p className="text-xl font-bold text-white">{stats.green}</p></div>
-            <div className="bg-yellow-900/30 border border-yellow-500/30 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-yellow-400 font-bold tracking-wider">Yellow House</p><p className="text-xl font-bold text-white">{stats.yellow}</p></div>
+            <div className="bg-red-900/30 border border-red-500/30 p-3 rounded-2xl text-center backdrop-blur-md">
+                <p className="text-[10px] uppercase text-red-400 font-bold tracking-wider">Red House</p>
+                <p className="text-xl font-bold text-white">{stats.red}</p>
+            </div>
+            <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-2xl text-center backdrop-blur-md">
+                <p className="text-[10px] uppercase text-blue-400 font-bold tracking-wider">Blue House</p>
+                <p className="text-xl font-bold text-white">{stats.blue}</p>
+            </div>
+            <div className="bg-emerald-900/30 border border-emerald-500/30 p-3 rounded-2xl text-center backdrop-blur-md">
+                <p className="text-[10px] uppercase text-emerald-400 font-bold tracking-wider">Green House</p>
+                <p className="text-xl font-bold text-white">{stats.green}</p>
+            </div>
+            <div className="bg-yellow-900/30 border border-yellow-500/30 p-3 rounded-2xl text-center backdrop-blur-md">
+                <p className="text-[10px] uppercase text-yellow-400 font-bold tracking-wider">Yellow House</p>
+                <p className="text-xl font-bold text-white">{stats.yellow}</p>
+            </div>
         </div>
+        {/* --- END GRACE SCHOOL COUNTER --- */}
 
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-2 md:p-3 rounded-2xl mb-8 flex flex-col md:flex-row gap-3">
            <div className="flex-1 relative"><span className="absolute left-4 top-3.5 text-gray-400">🔍</span><input type="text" placeholder="Search..." className="w-full pl-10 pr-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500 outline-none" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
@@ -472,10 +514,14 @@ export default function Home() {
            </div>
         </div>
       )}
-      
+
       {/* DAILY AUDIT MODAL */}
       {showDailyAuditModal && (
-        <DailyAuditModal dailyAudit={dailyAudit} todaysTotal={todaysTotal} onClose={() => setShowDailyAuditModal(false)} />
+        <DailyAuditModal 
+            dailyAudit={dailyAudit} 
+            todaysTotal={todaysTotal} 
+            onClose={() => setShowDailyAuditModal(false)} 
+        />
       )}
 
       {selectedPerson && (
@@ -486,31 +532,52 @@ export default function Home() {
                <button onClick={() => setSelectedPerson(null)} className="bg-white/10 hover:bg-white/20 text-white w-10 h-10 rounded-full">✕</button>
             </div>
             
-            {/* 1. PAYMENT SECTION */}
-            <div className="p-6 space-y-4 border-b border-white/5">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">1. Record Payment</p>
-                <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Method</label><select className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-indigo-500" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option className="bg-slate-800" value="Cash">💵 Cash</option><option className="bg-slate-800" value="MoMo">📱 MoMo</option></select></div>
-                    <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Gender</label><div className="flex bg-white/5 rounded-xl p-1 border border-white/10"><button disabled={!!selectedPerson.gender} onClick={() => setGender('Male')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Male' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}>Male</button><button disabled={!!selectedPerson.gender} onClick={() => setGender('Female')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Female' ? 'bg-pink-600 text-white' : 'text-slate-500'}`}>Female</button></div></div>
-                </div>
-                <div className="flex items-center gap-3 bg-black/30 p-4 rounded-2xl border border-dashed border-slate-700">
-                    <span className="text-2xl font-bold text-green-500">+</span>
-                    <input type="number" min="0" onKeyDown={(e) => ["-", "e", "+"].includes(e.key) && e.preventDefault()} className="w-full bg-transparent border-none p-0 text-3xl font-mono font-bold text-white outline-none placeholder-slate-700" placeholder="0" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} />
-                </div>
-                <button onClick={handleRecordPayment} disabled={processing} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-lg font-bold shadow-xl">💰 Record Payment</button>
-            </div>
+            {/* VIEW 1: ENTER AMOUNT */}
+            {!isConfirming && (
+                <>
+                    <div className="p-6 space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Method</label><select className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-indigo-500" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option className="bg-slate-800" value="Cash">💵 Cash</option><option className="bg-slate-800" value="MoMo">📱 MoMo</option></select></div>
+                            <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Gender</label><div className="flex bg-white/5 rounded-xl p-1 border border-white/10"><button disabled={!!selectedPerson.gender} onClick={() => setGender('Male')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Male' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}>Male</button><button disabled={!!selectedPerson.gender} onClick={() => setGender('Female')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Female' ? 'bg-pink-600 text-white' : 'text-slate-500'}`}>Female</button></div></div>
+                        </div>
+                        <div className="bg-black/30 p-5 rounded-2xl border border-dashed border-slate-700">
+                            <div className="flex justify-between mb-3 text-sm"><span className="text-slate-400">Paid Previously:</span><span className="font-mono font-bold text-white">₵{(selectedPerson.cash_amount||0) + (selectedPerson.momo_amount||0)}</span></div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl font-bold text-green-500">+</span>
+                                <input type="number" min="0" onKeyDown={(e) => ["-", "e", "+"].includes(e.key) && e.preventDefault()} className="w-full bg-transparent border-b-2 border-slate-600 focus:border-green-500 p-2 text-3xl font-mono font-bold text-white outline-none placeholder-slate-700" placeholder="0" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-6 bg-white/5 border-t border-white/10 flex gap-4">
+                        <button onClick={() => setSelectedPerson(null)} className="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors">Cancel</button>
+                        <button onClick={reviewTransaction} className="flex-[2] py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-lg font-bold shadow-xl">Process Payment</button>
+                    </div>
+                </>
+            )}
 
-            {/* 2. ATTENDANCE SECTION */}
-            <div className="p-6 bg-white/5 space-y-4">
-                <div className="flex justify-between items-center">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">2. Attendance</p>
-                    <p className={`text-sm font-bold uppercase ${selectedPerson.amount_paid >= targetFee ? 'text-emerald-400' : 'text-amber-500'}`}>{selectedPerson.amount_paid >= targetFee ? 'Fully Paid' : `Owes ₵${targetFee - selectedPerson.amount_paid}`}</p>
-                </div>
-                <div className="flex justify-between text-sm bg-black/20 p-3 rounded-xl border border-white/5"><span className="text-slate-400">Total Paid:</span><span className="font-mono font-bold text-white">₵{(selectedPerson.amount_paid || 0)}</span></div>
-                <button onClick={handleFinalCheckIn} disabled={processing || selectedPerson.amount_paid < targetFee} className={`w-full py-4 text-white rounded-xl text-lg font-bold shadow-xl transition-all ${selectedPerson.amount_paid >= targetFee ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-white/10 text-slate-500 cursor-not-allowed'}`}>
-                    {selectedPerson.checked_in ? '✅ Already Checked In' : (selectedPerson.amount_paid >= targetFee ? '✅ Check In & Print' : '🔒 Locked (Complete Payment)')}
-                </button>
-            </div>
+            {/* VIEW 2: BEAUTIFUL CONFIRMATION */}
+            {isConfirming && pendingTransaction && (
+                <>
+                    <div className="p-8 space-y-6 text-center">
+                        <div className="flex flex-col items-center">
+                            <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2">Receiving</p>
+                            <h2 className="text-5xl font-mono font-bold text-white drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">₵{pendingTransaction.newAmount}</h2>
+                            <p className="text-indigo-300 font-bold mt-2 bg-indigo-900/30 px-3 py-1 rounded-full border border-indigo-500/30">via {pendingTransaction.paymentMethod}</p>
+                        </div>
+                        
+                        <div className="bg-white/5 p-6 rounded-2xl border border-white/5 text-left space-y-3 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+                            <div className="flex justify-between"><span className="text-slate-400">Previous Total</span><span className="text-slate-300 font-mono">₵{(selectedPerson.cash_amount||0) + (selectedPerson.momo_amount||0)}</span></div>
+                            <div className="flex justify-between border-t border-white/10 pt-2 mt-2"><span className="text-white font-bold">New Total Balance</span><span className="text-white font-bold font-mono">₵{pendingTransaction.totalPaid}</span></div>
+                            <div className="flex justify-between pt-2"><span className="text-slate-400">Status</span><span className={`font-bold uppercase tracking-wider ${pendingTransaction.shouldCheckIn ? 'text-emerald-400' : 'text-amber-400'}`}>{pendingTransaction.shouldCheckIn ? 'FULL PAYMENT' : 'PARTIAL'}</span></div>
+                        </div>
+                    </div>
+                    <div className="p-6 bg-white/5 border-t border-white/10 flex gap-4">
+                        <button onClick={() => setIsConfirming(false)} className="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors">Back</button>
+                        <button onClick={confirmAndSave} disabled={processing} className={`flex-[2] py-4 text-white rounded-xl text-lg font-bold shadow-xl transition-transform active:scale-95 ${pendingTransaction.shouldCheckIn ? 'bg-gradient-to-r from-emerald-600 to-teal-600' : 'bg-gradient-to-r from-amber-600 to-orange-600'}`}>{processing ? 'Processing...' : 'CONFIRM & SAVE'}</button>
+                    </div>
+                </>
+            )}
           </div>
         </div>
       )}
