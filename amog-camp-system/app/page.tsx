@@ -302,18 +302,35 @@ export default function Home() {
     yellow: people.filter(p => p.grace_school === 'Yellow House').length,
   };
 
+  // --- LOGIN SCREEN (GLASSMORPHISM) ---
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative font-sans overflow-hidden">
-         <style>{globalStyles}</style>
-         <div className="absolute inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-purple-900/80 to-black/90 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover" alt="bg" /></div>
+         {/* Background with overlay */}
+         <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-purple-900/80 to-black/90 z-10"></div>
+            <img src="/camp-bg.png" className="w-full h-full object-cover" alt="Background" />
+         </div>
+         
          <div className="relative z-20 w-full max-w-md p-8 mx-4">
             <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl">
-                <div className="text-center mb-8"><h1 className="text-4xl font-extrabold text-white tracking-tight">AMOG <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">2026</span></h1><p className="text-blue-200 mt-2 font-medium">Help Desk Portal</p></div>
-                <form onSubmit={handleLogin} className="space-y-5">
-                  <input name="email" type="email" className="w-full p-4 rounded-xl bg-black/40 border border-white/10 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Email" required />
-                  <input name="password" type="password" className="w-full p-4 rounded-xl bg-black/40 border border-white/10 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Password" required />
-                  <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg">Access Portal</button>
+                <div className="text-center mb-10">
+                    <h1 className="text-5xl font-extrabold text-white tracking-tight drop-shadow-lg">AMOG <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">2026</span></h1>
+                    <div className="h-1 w-20 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mt-4 rounded-full"></div>
+                    <p className="text-blue-200 mt-4 font-medium tracking-wide uppercase text-xs">Official Help Desk Portal</p>
+                </div>
+                <form onSubmit={handleLogin} className="space-y-6">
+                  <div>
+                    <label className="text-xs font-bold text-blue-200 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label>
+                    <input name="email" type="email" className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" placeholder="Enter email address" required />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-blue-200 uppercase ml-1 mb-2 block tracking-wider">Password</label>
+                    <input name="password" type="password" className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" placeholder="••••••••" required />
+                  </div>
+                  <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/50 transition-all transform hover:scale-[1.02] tracking-wide">
+                    Sign In
+                  </button>
                 </form>
             </div>
          </div>
@@ -447,7 +464,7 @@ export default function Home() {
                         </div>
                     </div>
                     <div className="p-6 bg-white/5 border-t border-white/10 flex gap-4">
-                        <button onClick={() => setIsConfirming(false)} className="flex-1 py-4 font-bold text-slate-500 hover:text-white transition-colors">Back</button>
+                        <button onClick={() => setIsConfirming(false)} className="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors">Back</button>
                         <button onClick={confirmAndSave} disabled={processing} className={`flex-[2] py-4 text-white rounded-xl text-lg font-bold shadow-xl transition-transform active:scale-95 ${pendingTransaction.shouldCheckIn ? 'bg-gradient-to-r from-emerald-600 to-teal-600' : 'bg-gradient-to-r from-amber-600 to-orange-600'}`}>{processing ? 'Processing...' : 'CONFIRM & SAVE'}</button>
                     </div>
                 </>
