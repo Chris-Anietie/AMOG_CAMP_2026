@@ -44,11 +44,16 @@ export default function Home() {
   const [isRegistering, setIsRegistering] = useState(false); 
   const [showHistory, setShowHistory] = useState(false);
 
-  const [topUpAmount, setTopUpAmount] = useState<string | number>(''); 
+  // TRANSACTION STATE
+  const [topUpAmount, setTopUpAmount] = useState<string>(''); 
   const [targetFee, setTargetFee] = useState(400);
   const [paymentMethod, setPaymentMethod] = useState('Cash'); 
   const [processing, setProcessing] = useState(false);
   const [gender, setGender] = useState('Male');
+  
+  // CONFIRMATION STATE
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [pendingTransaction, setPendingTransaction] = useState<any>(null);
 
   const [newReg, setNewReg] = useState({ full_name: '', phone_number: '', role: 'Member', branch: 'Main', t_shirt: 'L', invited_by: '' });
   const [toast, setToast] = useState<{msg: string, type: 'success' | 'error' | 'warning'} | null>(null);
@@ -86,25 +91,17 @@ export default function Home() {
     if (supabaseUrl.includes("PASTE_YOUR")) return;
     const { data } = await supabase.from('participants').select('*').order('full_name');
     setPeople(data || []);
-    calculateTodaysTotal(); // Update the daily counter
+    calculateTodaysTotal();
   }
 
-  // --- CALCULATE REVENUE FOR TODAY ---
   async function calculateTodaysTotal() {
-    const today = new Date().toISOString().split('T')[0]; // Get YYYY-MM-DD
-    const { data } = await supabase.from('audit_logs')
-      .select('details')
-      .gte('created_at', today)
-      .ilike('action_type', '%Payment%'); // Only fetch payment logs
-
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
     let sum = 0;
     if (data) {
         data.forEach(log => {
-            // Extracts number from "Added ₵500..."
             const match = log.details.match(/Added ₵(\d+)/);
-            if (match && match[1]) {
-                sum += parseInt(match[1], 10);
-            }
+            if (match && match[1]) sum += parseInt(match[1], 10);
         });
     }
     setTodaysTotal(sum);
@@ -131,9 +128,8 @@ export default function Home() {
     await supabase.from('audit_logs').insert([{ staff_email: session?.user?.email, action_type: action, details: details }]);
   }
 
-  // --- CSV EXPORT ---
   const downloadCSV = () => {
-    const headers = ['Full Name', 'Role', 'Branch', 'Phone', 'Status', 'Total Paid', 'Cash Bucket', 'MoMo Bucket', 'T-Shirt', 'School', 'Staff'];
+    const headers = ['Full Name', 'Role', 'Branch', 'Phone', 'Status', 'Total Paid', 'Cash Paid', 'MoMo Paid', 'T-Shirt', 'School', 'Staff'];
     const csvRows = [headers.join(',')];
     people.forEach(p => {
       const total = (p.cash_amount || 0) + (p.momo_amount || 0);
@@ -149,36 +145,39 @@ export default function Home() {
     showToast("Exported", "success");
   };
 
-  // --- CHECK IN LOGIC (TWO POCKETS) ---
+  // --- CHECK IN LOGIC ---
   const openCheckIn = (person: any) => {
     setSelectedPerson(person);
     const isLeader = person.role?.toLowerCase().includes('leader') || person.role?.toLowerCase().includes('pastor');
     setTargetFee(isLeader ? 1000 : 400);
+    
+    // Reset States
     setTopUpAmount(''); 
     setPaymentMethod('Cash'); 
     setGender(person.gender || 'Male');
+    setIsConfirming(false); // Ensure we start at input
+    setPendingTransaction(null);
   };
 
-  async function handleCheckIn() {
-    if (!isOnline) { showToast("Offline mode.", "error"); return; }
-    setProcessing(true);
+  // Step 1: PREPARE TRANSACTION (The Review Phase)
+  const reviewTransaction = () => {
+    const amount = Number(topUpAmount);
     
-    // 1. Get Current Pockets
+    // BLOCK NEGATIVE OR ZERO
+    if (isNaN(amount) || amount <= 0) {
+        showToast("Please enter a valid amount greater than 0", "warning");
+        return;
+    }
+
     const currentCash = selectedPerson.cash_amount || 0;
     const currentMoMo = selectedPerson.momo_amount || 0;
-    const newAmount = Number(topUpAmount) || 0;
-
-    // 2. Add New Money to CORRECT Pocket
+    
     let newCash = currentCash;
     let newMoMo = currentMoMo;
 
-    if (paymentMethod === 'Cash') {
-        newCash += newAmount;
-    } else {
-        newMoMo += newAmount;
-    }
+    if (paymentMethod === 'Cash') newCash += amount;
+    else newMoMo += amount;
 
-    // 3. Calculate Total
     const totalPaid = newCash + newMoMo;
     const balance = targetFee - totalPaid;
     const isFullyPaid = balance <= 0;
@@ -187,41 +186,63 @@ export default function Home() {
     
     const randomSchool = selectedPerson.grace_school || (shouldCheckIn ? GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)] : null);
 
+    // Save pending data for the confirmation screen
+    setPendingTransaction({
+        newAmount: amount,
+        paymentMethod,
+        newCash,
+        newMoMo,
+        totalPaid,
+        balance,
+        status,
+        shouldCheckIn,
+        randomSchool
+    });
+
+    setIsConfirming(true); // Switch to Confirmation View
+  };
+
+  // Step 2: EXECUTE (The Real Save)
+  const confirmAndSave = async () => {
+    if (!isOnline) { showToast("Offline mode.", "error"); return; }
+    if (!pendingTransaction) return;
+
+    setProcessing(true);
+    const pt = pendingTransaction;
+
     const { error } = await supabase.from('participants').update({
       gender: gender, 
-      amount_paid: totalPaid, // Keep total for easy display
-      cash_amount: newCash,   // Update Cash Pocket
-      momo_amount: newMoMo,   // Update MoMo Pocket
-      payment_status: status, 
-      grace_school: randomSchool, 
-      checked_in: shouldCheckIn, 
-      checked_in_at: shouldCheckIn ? new Date().toISOString() : null, 
+      amount_paid: pt.totalPaid,
+      cash_amount: pt.newCash,
+      momo_amount: pt.newMoMo,
+      payment_status: pt.status, 
+      grace_school: pt.randomSchool, 
+      checked_in: pt.shouldCheckIn, 
+      checked_in_at: pt.shouldCheckIn ? new Date().toISOString() : null, 
       checked_in_by: session?.user?.email
     }).eq('id', selectedPerson.id);
 
     if (error) { showToast("Error: " + error.message, 'error'); } 
     else {
-      // Log carefully so "Received Today" calculator works
-      const logDetails = `Added ₵${newAmount} via ${paymentMethod}. Total: ₵${totalPaid}. Status: ${status}`;
-      await logAction(shouldCheckIn ? 'Check-In Payment' : 'Partial Payment', logDetails);
+      const logDetails = `Added ₵${pt.newAmount} via ${pt.paymentMethod}. Total: ₵${pt.totalPaid}. Status: ${pt.status}`;
+      await logAction(pt.shouldCheckIn ? 'Check-In Payment' : 'Partial Payment', logDetails);
       
-      await fetchPeople(); // This will trigger calculateTodaysTotal()
+      await fetchPeople();
       
-      if (shouldCheckIn) {
-          const message = `Calvary greetings ${selectedPerson.full_name}! ✝️%0A%0AWelcome to AMOG 2026.%0A%0A*Registration Complete:*%0A🏠 *House:* ${randomSchool}%0A💰 *Total Paid:* ₵${totalPaid}%0A%0AGod bless you!`;
+      if (pt.shouldCheckIn) {
+          const message = `Calvary greetings ${selectedPerson.full_name}! ✝️%0A%0AWelcome to AMOG 2026.%0A%0A*Registration Complete:*%0A🏠 *House:* ${pt.randomSchool}%0A💰 *Total Paid:* ₵${pt.totalPaid}%0A%0AGod bless you!`;
           const waLink = `https://wa.me/233${selectedPerson.phone_number?.substring(1)}?text=${message}`;
           window.open(waLink, '_blank');
           showToast(`Checked In: ${selectedPerson.full_name}`, 'success');
-          setSelectedPerson(null);
       } else {
-          showToast(`Saved. Owing: ₵${balance}`, 'warning');
-          setSelectedPerson(null);
+          showToast(`Payment saved. Owing: ₵${pt.balance}`, 'warning');
       }
+      setSelectedPerson(null);
     }
     setProcessing(false);
   }
 
-  // --- NEW REGISTRATION LOGIC ---
+  // --- NEW REGISTRATION ---
   async function handleNewRegistration() {
     if (!isOnline) { showToast("Offline.", "error"); return; }
     if (newReg.phone_number.length < 10) { showToast("Invalid Phone", "error"); return; }
@@ -275,10 +296,8 @@ export default function Home() {
       return true;
   }).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
 
-  // --- STATS CALCULATION (USING SEPARATE POCKETS) ---
   const stats = { 
     checkedIn: people.filter(p => p.checked_in).length, 
-    // Sum specific columns
     totalCash: people.reduce((sum, p) => sum + (p.cash_amount || 0), 0),
     totalMomo: people.reduce((sum, p) => sum + (p.momo_amount || 0), 0),
     red: people.filter(p => p.grace_school === 'Red House').length,
@@ -319,10 +338,7 @@ export default function Home() {
             <div className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 min-w-[100px] text-center"><p className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Checked In</p><p className="text-2xl font-bold text-white">{stats.checkedIn}</p></div>
             <div className="bg-emerald-900/40 backdrop-blur-md p-4 rounded-2xl border border-emerald-500/30 min-w-[120px] text-center"><p className="text-[10px] uppercase text-emerald-400 font-bold tracking-wider">Cash Total</p><p className="text-2xl font-bold text-emerald-100">₵{stats.totalCash}</p></div>
             <div className="bg-blue-900/40 backdrop-blur-md p-4 rounded-2xl border border-blue-500/30 min-w-[120px] text-center"><p className="text-[10px] uppercase text-blue-400 font-bold tracking-wider">MoMo Total</p><p className="text-2xl font-bold text-blue-100">₵{stats.totalMomo}</p></div>
-            
-            {/* RECEIVED TODAY COUNTER */}
             <div className="bg-purple-900/40 backdrop-blur-md p-4 rounded-2xl border border-purple-500/30 min-w-[120px] text-center"><p className="text-[10px] uppercase text-purple-400 font-bold tracking-wider">Received Today</p><p className="text-2xl font-bold text-purple-100">₵{todaysTotal}</p></div>
-            
             <button onClick={() => supabase.auth.signOut()} className="bg-red-500/20 hover:bg-red-500/40 text-red-200 px-6 rounded-2xl border border-red-500/30 font-bold transition-all">Logout</button>
           </div>
         </div>
@@ -344,18 +360,16 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pb-20">
           {filteredPeople.map((person) => {
-            // Total paid is sum of pockets
             const totalPaid = (person.cash_amount || 0) + (person.momo_amount || 0);
             const isPartial = !person.checked_in && totalPaid > 0;
-            
             let glow = 'hover:shadow-indigo-500/20 border-indigo-500/30';
-            if (person.checked_in) glow = 'hover:shadow-emerald-500/20 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]';
+            if (person.checked_in) glow = 'hover:shadow-emerald-500/20 border-emerald-500/50';
             else if (isPartial) glow = 'hover:shadow-amber-500/20 border-amber-500/50';
 
             return (
                 <div key={person.id} className={`group relative bg-white/5 backdrop-blur-md rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 ${glow}`}>
                   <div className="flex justify-between items-start mb-4">
-                     <div><h2 className="text-xl font-bold text-white leading-tight">{person.full_name}</h2><div className="flex items-center gap-2 mt-1"><span className="text-xs font-bold px-2 py-0.5 rounded bg-white/10 text-slate-300 uppercase">{person.role}</span><span className="text-xs text-slate-500">{person.branch}</span></div></div>
+                     <div><h2 className="text-xl font-bold text-white">{person.full_name}</h2><div className="flex items-center gap-2 mt-1"><span className="text-xs font-bold px-2 py-0.5 rounded bg-white/10 text-slate-300 uppercase">{person.role}</span><span className="text-xs text-slate-500">{person.branch}</span></div></div>
                      {person.payment_status !== 'Paid' && <span className="text-xs font-bold text-amber-400 bg-amber-900/30 px-2 py-1 rounded border border-amber-500/30">OWING</span>}
                   </div>
                   {person.checked_in ? (
@@ -380,11 +394,7 @@ export default function Home() {
            <div className="bg-[#1e293b] border border-white/10 rounded-2xl w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl">
               <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5"><h2 className="font-bold text-xl text-white">Transaction History</h2><button onClick={() => setShowHistory(false)} className="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full text-white">✕</button></div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                 {historyLogs.length === 0 ? (<div className="text-center text-slate-500 mt-10">No logs found.</div>) : (
-                     historyLogs.map((log, i) => (
-                        <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/5"><div className="flex justify-between mb-1"><span className="font-mono text-xs text-indigo-400">{new Date(log.created_at).toLocaleString()}</span><span className="text-[10px] uppercase text-slate-500">{log.action_type}</span></div><p className="text-slate-200 text-sm">{log.details}</p><p className="text-xs text-slate-600 mt-2">By: {log.staff_email}</p></div>
-                     ))
-                 )}
+                 {historyLogs.length === 0 ? (<div className="text-center text-slate-500 mt-10">No logs found.</div>) : (historyLogs.map((log, i) => (<div key={i} className="p-4 rounded-xl bg-white/5 border border-white/5"><div className="flex justify-between mb-1"><span className="font-mono text-xs text-indigo-400">{new Date(log.created_at).toLocaleString()}</span><span className="text-[10px] uppercase text-slate-500">{log.action_type}</span></div><p className="text-slate-200 text-sm">{log.details}</p><p className="text-xs text-slate-600 mt-2">By: {log.staff_email}</p></div>)))}
               </div>
            </div>
         </div>
@@ -397,21 +407,53 @@ export default function Home() {
                <div><h2 className="text-2xl font-bold text-white">{selectedPerson.full_name}</h2><span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">{selectedPerson.role}</span></div>
                <button onClick={() => setSelectedPerson(null)} className="bg-white/10 hover:bg-white/20 text-white w-10 h-10 rounded-full">✕</button>
             </div>
-            <div className="p-6 space-y-6">
-               <div className="grid grid-cols-2 gap-4">
-                  <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Method</label><select className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-indigo-500" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option className="bg-slate-800" value="Cash">💵 Cash</option><option className="bg-slate-800" value="MoMo">📱 MoMo</option></select></div>
-                  <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Gender</label><div className="flex bg-white/5 rounded-xl p-1 border border-white/10"><button disabled={!!selectedPerson.gender} onClick={() => setGender('Male')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Male' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}>Male</button><button disabled={!!selectedPerson.gender} onClick={() => setGender('Female')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Female' ? 'bg-pink-600 text-white' : 'text-slate-500'}`}>Female</button></div></div>
-               </div>
-               <div className="bg-black/30 p-5 rounded-2xl border border-dashed border-slate-700">
-                  <div className="flex justify-between mb-3 text-sm"><span className="text-slate-400">Total Paid So Far:</span><span className="font-mono font-bold text-white">₵{(selectedPerson.cash_amount||0) + (selectedPerson.momo_amount||0)}</span></div>
-                  <div className="flex items-center gap-3"><span className="text-2xl font-bold text-green-500">+</span><input type="number" className="w-full bg-transparent border-b-2 border-slate-600 focus:border-green-500 p-2 text-3xl font-mono font-bold text-white outline-none placeholder-slate-700" placeholder="0" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} /></div>
-                  <div className="text-right mt-3 text-xs font-mono text-slate-400">New Total: <span className="text-white font-bold">₵{((selectedPerson.cash_amount||0) + (selectedPerson.momo_amount||0)) + (Number(topUpAmount)||0)}</span> <span className="text-slate-600">/ ₵{targetFee}</span></div>
-               </div>
-            </div>
-            <div className="p-6 bg-white/5 border-t border-white/10 flex gap-4">
-               <button onClick={() => setSelectedPerson(null)} className="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors">Cancel</button>
-               <button onClick={handleCheckIn} disabled={processing} className={`flex-[2] py-4 text-white rounded-xl text-lg font-bold shadow-xl transition-transform active:scale-95 ${(((selectedPerson.cash_amount||0) + (selectedPerson.momo_amount||0)) + (Number(topUpAmount)||0)) >= targetFee ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-amber-600 hover:bg-amber-500'}`}>{processing ? 'Processing...' : ((((selectedPerson.cash_amount||0) + (selectedPerson.momo_amount||0)) + (Number(topUpAmount)||0)) >= targetFee ? 'CONFIRM CHECK IN' : 'SAVE PARTIAL')}</button>
-            </div>
+            
+            {/* VIEW 1: ENTER AMOUNT */}
+            {!isConfirming && (
+                <>
+                    <div className="p-6 space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Method</label><select className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-indigo-500" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option className="bg-slate-800" value="Cash">💵 Cash</option><option className="bg-slate-800" value="MoMo">📱 MoMo</option></select></div>
+                            <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Gender</label><div className="flex bg-white/5 rounded-xl p-1 border border-white/10"><button disabled={!!selectedPerson.gender} onClick={() => setGender('Male')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Male' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}>Male</button><button disabled={!!selectedPerson.gender} onClick={() => setGender('Female')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Female' ? 'bg-pink-600 text-white' : 'text-slate-500'}`}>Female</button></div></div>
+                        </div>
+                        <div className="bg-black/30 p-5 rounded-2xl border border-dashed border-slate-700">
+                            <div className="flex justify-between mb-3 text-sm"><span className="text-slate-400">Paid Previously:</span><span className="font-mono font-bold text-white">₵{(selectedPerson.cash_amount||0) + (selectedPerson.momo_amount||0)}</span></div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl font-bold text-green-500">+</span>
+                                {/* PREVENTS NEGATIVE INPUT */}
+                                <input type="number" min="0" className="w-full bg-transparent border-b-2 border-slate-600 focus:border-green-500 p-2 text-3xl font-mono font-bold text-white outline-none placeholder-slate-700" placeholder="0" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-6 bg-white/5 border-t border-white/10 flex gap-4">
+                        <button onClick={() => setSelectedPerson(null)} className="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors">Cancel</button>
+                        <button onClick={reviewTransaction} className="flex-[2] py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-lg font-bold shadow-xl">Review Transaction</button>
+                    </div>
+                </>
+            )}
+
+            {/* VIEW 2: CONFIRMATION SCREEN */}
+            {isConfirming && pendingTransaction && (
+                <>
+                    <div className="p-8 space-y-6 text-center">
+                        <div className="bg-white/5 p-4 rounded-2xl border border-white/10 inline-block mb-2">
+                            <span className="text-3xl">🧾</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-white">Confirm Payment</h3>
+                        
+                        <div className="bg-black/30 p-6 rounded-2xl border border-white/10 text-left space-y-3">
+                            <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-slate-400">Received Amount</span><span className="text-green-400 font-bold font-mono">+ ₵{pendingTransaction.newAmount}</span></div>
+                            <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-slate-400">Method</span><span className="text-white font-bold">{pendingTransaction.paymentMethod}</span></div>
+                            <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-slate-400">New Total Paid</span><span className="text-white font-bold font-mono">₵{pendingTransaction.totalPaid}</span></div>
+                            <div className="flex justify-between pt-2"><span className="text-slate-400">Status</span><span className={`font-bold uppercase ${pendingTransaction.shouldCheckIn ? 'text-emerald-400' : 'text-amber-400'}`}>{pendingTransaction.shouldCheckIn ? 'Fully Paid (Check In)' : 'Still Owing'}</span></div>
+                        </div>
+                    </div>
+                    <div className="p-6 bg-white/5 border-t border-white/10 flex gap-4">
+                        <button onClick={() => setIsConfirming(false)} className="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors">Back</button>
+                        <button onClick={confirmAndSave} disabled={processing} className={`flex-[2] py-4 text-white rounded-xl text-lg font-bold shadow-xl transition-transform active:scale-95 ${pendingTransaction.shouldCheckIn ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-amber-600 hover:bg-amber-500'}`}>{processing ? 'Processing...' : 'CONFIRM & SAVE'}</button>
+                    </div>
+                </>
+            )}
           </div>
         </div>
       )}
