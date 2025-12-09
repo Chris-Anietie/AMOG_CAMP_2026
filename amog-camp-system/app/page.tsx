@@ -46,7 +46,7 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
-// --- DAILY AUDIT MODAL COMPONENT (NEW) ---
+// --- DAILY AUDIT MODAL COMPONENT ---
 function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: { dailyAudit: any, todaysTotal: number, onClose: () => void }) {
     return (
         <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
@@ -85,8 +85,6 @@ function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: { dailyAudit: any
         </div>
     );
 }
-// --- END DAILY AUDIT MODAL COMPONENT ---
-
 
 export default function Home() {
   const [session, setSession] = useState<any>(null);
@@ -98,12 +96,12 @@ export default function Home() {
   
   // AUDITING STATE
   const [todaysTotal, setTodaysTotal] = useState(0);
-  const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 }); // NEW STATE FOR DAILY BREAKDOWN
+  const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 });
 
   const [selectedPerson, setSelectedPerson] = useState<any>(null);
   const [isRegistering, setIsRegistering] = useState(false); 
   const [showHistory, setShowHistory] = useState(false);
-  const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); // NEW MODAL STATE
+  const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); 
 
   // TRANSACTION STATE
   const [topUpAmount, setTopUpAmount] = useState<string>(''); 
@@ -135,7 +133,7 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- AUDIT LOGIC (MAIN CALCULATION) ---
+  // --- AUDIT LOGIC ---
   async function runDailyAudit() {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
@@ -150,32 +148,25 @@ export default function Home() {
             if (amountMatch && amountMatch[1]) {
                 const amount = parseInt(amountMatch[1], 10);
                 paymentCount++;
-                
-                if (log.details.includes('Cash')) {
-                    cashSum += amount;
-                } else if (log.details.includes('MoMo')) {
-                    momoSum += amount;
-                }
+                if (log.details.includes('Cash')) cashSum += amount;
+                else if (log.details.includes('MoMo')) momoSum += amount;
             }
         });
     }
     setTodaysTotal(cashSum + momoSum);
     setDailyAudit({ cash: cashSum, momo: momoSum, count: paymentCount });
-    setShowDailyAuditModal(true); // Open the modal after calculating
+    setShowDailyAuditModal(true); 
   }
-
 
   // --- DATA FETCHING ---
   async function fetchPeople() {
     if (supabaseUrl.includes("PASTE_YOUR")) return;
     const { data } = await supabase.from('participants').select('*').order('full_name');
     setPeople(data || []);
-    // Note: The main dashboard total (todaysTotal) is updated here, relying on the background log parser
     calculateTodaysTotal();
   }
 
   async function calculateTodaysTotal() {
-    // This function only updates the tiny dashboard counter at the top
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
     let sum = 0;
@@ -261,7 +252,9 @@ export default function Home() {
     const status = isFullyPaid ? 'Paid' : 'Partial'; 
     const shouldCheckIn = isFullyPaid; 
     
-    const randomSchool = selectedPerson.grace_school || (shouldCheckIn ? GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)] : null);
+    // --- RANDOM SCHOOL ALLOCATION (FIXED) ---
+    // If they already have a school, keep it. If not, give them one NOW.
+    const randomSchool = selectedPerson.grace_school || GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
 
     setPendingTransaction({
         newAmount: amount,
@@ -272,7 +265,7 @@ export default function Home() {
         balance,
         status,
         shouldCheckIn,
-        randomSchool
+        randomSchool // This is now always set
     });
 
     setIsConfirming(true);
@@ -291,7 +284,7 @@ export default function Home() {
       cash_amount: pt.newCash,
       momo_amount: pt.newMoMo,
       payment_status: pt.status, 
-      grace_school: pt.randomSchool, 
+      grace_school: pt.randomSchool, // Saves the school (Random or Existing)
       checked_in: pt.shouldCheckIn, 
       checked_in_at: pt.shouldCheckIn ? new Date().toISOString() : null, 
       checked_in_by: session?.user?.email
@@ -299,7 +292,6 @@ export default function Home() {
 
     if (error) { showToast("Error: " + error.message, 'error'); } 
     else {
-      // Log carefully so "Received Today" calculator works
       const logDetails = `Added ₵${pt.newAmount} via ${pt.paymentMethod}. Total: ₵${pt.totalPaid}. Status: ${pt.status}`;
       await logAction(pt.shouldCheckIn ? 'Check-In Payment' : 'Partial Payment', logDetails);
       await fetchPeople();
@@ -326,10 +318,14 @@ export default function Home() {
     const existing = people.find(p => p.phone_number === newReg.phone_number);
     if (existing) { showToast(`${existing.full_name} exists!`, 'error'); setProcessing(false); return; }
 
+    // --- RANDOM SCHOOL ALLOCATION (ON REGISTER) ---
+    const randomSchool = GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
+
     const { data, error } = await supabase.from('participants').insert([{
       full_name: newReg.full_name, phone_number: newReg.phone_number, role: newReg.role, branch: newReg.branch,
       t_shirt: newReg.t_shirt, invited_by: newReg.invited_by,
-      payment_status: 'Pending', amount_paid: 0, cash_amount: 0, momo_amount: 0, checked_in: false
+      payment_status: 'Pending', amount_paid: 0, cash_amount: 0, momo_amount: 0, checked_in: false,
+      grace_school: randomSchool // Assign immediate random school
     }]).select();
 
     if (error) { showToast(error.message, 'error'); } 
@@ -353,9 +349,8 @@ export default function Home() {
     showToast("Deleted.", 'success'); setSelectedPerson(null); await fetchPeople(); setProcessing(false);
   }
 
-  // --- UPDATED LOGIN HANDLER (SECURITY FIX) ---
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // 🔥 Stops URL refresh
+    e.preventDefault(); 
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
@@ -384,7 +379,6 @@ export default function Home() {
     yellow: people.filter(p => p.grace_school === 'Yellow House').length,
   };
 
-  // --- LOGIN SCREEN (GLASSMORPHISM) ---
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative font-sans overflow-hidden">
@@ -401,7 +395,6 @@ export default function Home() {
                     <div className="h-1 w-20 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mt-4 rounded-full"></div>
                     <p className="text-blue-200 mt-4 font-medium tracking-wide uppercase text-xs">Official Help Desk Portal</p>
                 </div>
-                {/* METHOD="POST" + TYPE="SUBMIT" FIXES URL ISSUE */}
                 <form onSubmit={handleLogin} method="POST" className="space-y-6">
                   <div>
                     <label className="text-xs font-bold text-blue-200 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label>
@@ -436,7 +429,10 @@ export default function Home() {
             <div className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 min-w-[100px] text-center"><p className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Checked In</p><p className="text-2xl font-bold text-white">{stats.checkedIn}</p></div>
             <div className="bg-emerald-900/40 backdrop-blur-md p-4 rounded-2xl border border-emerald-500/30 min-w-[120px] text-center"><p className="text-[10px] uppercase text-emerald-400 font-bold tracking-wider">Cash Total</p><p className="text-2xl font-bold text-emerald-100">₵{stats.totalCash}</p></div>
             <div className="bg-blue-900/40 backdrop-blur-md p-4 rounded-2xl border border-blue-500/30 min-w-[120px] text-center"><p className="text-[10px] uppercase text-blue-400 font-bold tracking-wider">MoMo Total</p><p className="text-2xl font-bold text-blue-100">₵{stats.totalMomo}</p></div>
-            <div className="bg-purple-900/40 backdrop-blur-md p-4 rounded-2xl border border-purple-500/30 min-w-[120px] text-center"><p className="text-[10px] uppercase text-purple-400 font-bold tracking-wider">Received Today</p><p className="text-2xl font-bold text-purple-100">₵{todaysTotal}</p></div>
+            
+            {/* CLICKABLE TOTAL FOR AUDIT MODAL */}
+            <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md p-4 rounded-2xl border border-purple-500/30 min-w-[120px] text-center cursor-pointer hover:bg-purple-900/60 transition-all"><p className="text-[10px] uppercase text-purple-400 font-bold tracking-wider">Received Today</p><p className="text-2xl font-bold text-purple-100">₵{todaysTotal}</p></div>
+            
             <button onClick={() => supabase.auth.signOut()} className="bg-red-500/20 hover:bg-red-500/40 text-red-200 px-6 rounded-2xl border border-red-500/30 font-bold transition-all">Logout</button>
           </div>
         </div>
@@ -497,8 +493,8 @@ export default function Home() {
            </div>
         </div>
       )}
-      
-      {/* NEW: DAILY AUDIT MODAL */}
+
+      {/* DAILY AUDIT MODAL */}
       {showDailyAuditModal && (
         <DailyAuditModal 
             dailyAudit={dailyAudit} 
