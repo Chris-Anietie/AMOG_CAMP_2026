@@ -275,7 +275,7 @@ export default function Home() {
   }
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault(); // REACT WAY: PREVENT RELOAD
     const email = (e.target as any).email.value;
     const password = (e.target as any).password.value;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -302,7 +302,7 @@ export default function Home() {
     yellow: people.filter(p => p.grace_school === 'Yellow House').length,
   };
 
-  // --- LOGIN SCREEN (GLASSMORPHISM) ---
+  // --- LOGIN SCREEN (GLASSMORPHISM + URL FIX) ---
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative font-sans overflow-hidden">
@@ -319,7 +319,8 @@ export default function Home() {
                     <div className="h-1 w-20 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mt-4 rounded-full"></div>
                     <p className="text-blue-200 mt-4 font-medium tracking-wide uppercase text-xs">Official Help Desk Portal</p>
                 </div>
-                <form onSubmit={handleLogin} className="space-y-6">
+                {/* METHOD="POST" ADDED HERE FOR EXTRA SAFETY */}
+                <form onSubmit={handleLogin} method="POST" className="space-y-6">
                   <div>
                     <label className="text-xs font-bold text-blue-200 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label>
                     <input name="email" type="email" className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" placeholder="Enter email address" required />
