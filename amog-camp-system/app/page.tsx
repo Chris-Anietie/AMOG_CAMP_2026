@@ -401,7 +401,10 @@ export default function Home() {
             <div className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 min-w-[100px] text-center"><p className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Checked In</p><p className="text-2xl font-bold text-white">{stats.checkedIn}</p></div>
             <div className="bg-emerald-900/40 backdrop-blur-md p-4 rounded-2xl border border-emerald-500/30 min-w-[120px] text-center"><p className="text-[10px] uppercase text-emerald-400 font-bold tracking-wider">Cash Total</p><p className="text-2xl font-bold text-emerald-100">₵{stats.totalCash}</p></div>
             <div className="bg-blue-900/40 backdrop-blur-md p-4 rounded-2xl border border-blue-500/30 min-w-[120px] text-center"><p className="text-[10px] uppercase text-blue-400 font-bold tracking-wider">MoMo Total</p><p className="text-2xl font-bold text-blue-100">₵{stats.totalMomo}</p></div>
+            
+            {/* CLICKABLE TOTAL FOR AUDIT MODAL */}
             <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md p-4 rounded-2xl border border-purple-500/30 min-w-[120px] text-center cursor-pointer hover:bg-purple-900/60 transition-all"><p className="text-[10px] uppercase text-purple-400 font-bold tracking-wider">Received Today</p><p className="text-2xl font-bold text-purple-100">₵{todaysTotal}</p></div>
+            
             <button onClick={() => supabase.auth.signOut()} className="bg-red-500/20 hover:bg-red-500/40 text-red-200 px-6 rounded-2xl border border-red-500/30 font-bold transition-all">Logout</button>
           </div>
         </div>
