@@ -12,6 +12,18 @@ const GRACE_SCHOOLS = ['Red House', 'Blue House', 'Green House', 'Yellow House']
 const IDLE_TIMEOUT_SECONDS = 600; 
 const SUPER_ADMINS = ['admin@camp.com']; 
 
+// --- STYLES FOR REMOVING NUMBER SPINNERS ---
+const globalStyles = `
+  input[type=number]::-webkit-inner-spin-button, 
+  input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+  }
+  input[type=number] {
+    -moz-appearance: textfield;
+  }
+`;
+
 function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' | 'warning', onClose: () => void }) {
   useEffect(() => {
     if (type !== 'warning') { 
@@ -20,11 +32,14 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
     }
   }, [onClose, type]);
 
-  const bgColors = { success: 'bg-emerald-600', error: 'bg-red-600', warning: 'bg-amber-500' };
+  const bgColors = {
+    success: 'bg-emerald-600/90 border-emerald-500/50',
+    error: 'bg-red-600/90 border-red-500/50',
+    warning: 'bg-amber-500/90 border-amber-500/50'
+  };
 
   return (
-    <div className={`fixed top-6 right-6 z-[100] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-top duration-300 text-white backdrop-blur-md ${bgColors[type]}`}>
-      <span className="text-2xl">{type === 'success' ? '✨' : type === 'error' ? '🚫' : '⚠️'}</span>
+    <div className={`fixed top-6 right-6 z-[100] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-top duration-300 text-white backdrop-blur-md border ${bgColors[type]}`}>
       <div><h4 className="font-bold text-lg capitalize tracking-wide">{type}</h4><p className="font-medium opacity-90">{msg}</p></div>
       <button onClick={onClose} className="ml-4 opacity-70 hover:opacity-100 font-bold text-xl">✕</button>
     </div>
@@ -73,18 +88,6 @@ export default function Home() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
     return () => subscription.unsubscribe();
   }, []);
-
-  useEffect(() => {
-    if (!session) return;
-    const resetIdle = () => {
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = setTimeout(() => { supabase.auth.signOut(); showToast("Session expired", "warning"); }, IDLE_TIMEOUT_SECONDS * 1000);
-    };
-    window.addEventListener('mousemove', resetIdle);
-    window.addEventListener('keydown', resetIdle);
-    resetIdle();
-    return () => { window.removeEventListener('mousemove', resetIdle); window.removeEventListener('keydown', resetIdle); if (idleTimerRef.current) clearTimeout(idleTimerRef.current); };
-  }, [session]);
 
   // --- DATA FETCHING ---
   async function fetchPeople() {
@@ -145,33 +148,29 @@ export default function Home() {
     showToast("Exported", "success");
   };
 
-  // --- CHECK IN LOGIC ---
+  // --- CHECK IN FLOW ---
   const openCheckIn = (person: any) => {
     setSelectedPerson(person);
     const isLeader = person.role?.toLowerCase().includes('leader') || person.role?.toLowerCase().includes('pastor');
     setTargetFee(isLeader ? 1000 : 400);
-    
-    // Reset States
     setTopUpAmount(''); 
     setPaymentMethod('Cash'); 
     setGender(person.gender || 'Male');
-    setIsConfirming(false); // Ensure we start at input
+    setIsConfirming(false); 
     setPendingTransaction(null);
   };
 
-  // Step 1: PREPARE TRANSACTION (The Review Phase)
   const reviewTransaction = () => {
     const amount = Number(topUpAmount);
     
-    // BLOCK NEGATIVE OR ZERO
+    // BLOCK INVALID AMOUNTS
     if (isNaN(amount) || amount <= 0) {
-        showToast("Please enter a valid amount greater than 0", "warning");
+        showToast("Please enter a valid amount", "warning");
         return;
     }
 
     const currentCash = selectedPerson.cash_amount || 0;
     const currentMoMo = selectedPerson.momo_amount || 0;
-    
     let newCash = currentCash;
     let newMoMo = currentMoMo;
 
@@ -186,7 +185,6 @@ export default function Home() {
     
     const randomSchool = selectedPerson.grace_school || (shouldCheckIn ? GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)] : null);
 
-    // Save pending data for the confirmation screen
     setPendingTransaction({
         newAmount: amount,
         paymentMethod,
@@ -199,10 +197,9 @@ export default function Home() {
         randomSchool
     });
 
-    setIsConfirming(true); // Switch to Confirmation View
+    setIsConfirming(true);
   };
 
-  // Step 2: EXECUTE (The Real Save)
   const confirmAndSave = async () => {
     if (!isOnline) { showToast("Offline mode.", "error"); return; }
     if (!pendingTransaction) return;
@@ -226,7 +223,6 @@ export default function Home() {
     else {
       const logDetails = `Added ₵${pt.newAmount} via ${pt.paymentMethod}. Total: ₵${pt.totalPaid}. Status: ${pt.status}`;
       await logAction(pt.shouldCheckIn ? 'Check-In Payment' : 'Partial Payment', logDetails);
-      
       await fetchPeople();
       
       if (pt.shouldCheckIn) {
@@ -235,7 +231,7 @@ export default function Home() {
           window.open(waLink, '_blank');
           showToast(`Checked In: ${selectedPerson.full_name}`, 'success');
       } else {
-          showToast(`Payment saved. Owing: ₵${pt.balance}`, 'warning');
+          showToast(`Saved. Owing: ₵${pt.balance}`, 'warning');
       }
       setSelectedPerson(null);
     }
@@ -309,6 +305,7 @@ export default function Home() {
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative font-sans overflow-hidden">
+         <style>{globalStyles}</style>
          <div className="absolute inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-purple-900/80 to-black/90 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover" alt="bg" /></div>
          <div className="relative z-20 w-full max-w-md p-8 mx-4">
             <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl">
@@ -327,6 +324,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen font-sans text-gray-100 bg-[#0f172a] relative pb-20 overflow-x-hidden">
+      <style>{globalStyles}</style>
       <div className="fixed inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-indigo-950/90 to-black/95 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-60" alt="bg" /></div>
       {!isOnline && ( <div className="fixed top-0 left-0 right-0 bg-red-600/90 text-white text-center py-2 text-xs font-bold z-[200] backdrop-blur">⚠️ OFFLINE MODE</div> )}
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
@@ -346,7 +344,7 @@ export default function Home() {
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-2 md:p-3 rounded-2xl mb-8 flex flex-col md:flex-row gap-3">
            <div className="flex-1 relative"><span className="absolute left-4 top-3.5 text-gray-400">🔍</span><input type="text" placeholder="Search..." className="w-full pl-10 pr-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500 outline-none" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
            <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              <button onClick={() => setIsRegistering(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 whitespace-nowrap"><span>+</span> New</button>
+              <button onClick={() => setIsRegistering(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-indigo-900/50 flex items-center gap-2 whitespace-nowrap"><span>+</span> New</button>
               <button onClick={fetchHistory} className="bg-slate-700/50 hover:bg-slate-700 text-slate-200 px-5 py-3 rounded-xl font-bold border border-white/10 whitespace-nowrap">📜 Logs</button>
               <button onClick={downloadCSV} className="bg-emerald-600/80 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl font-bold whitespace-nowrap">⬇ CSV</button>
            </div>
@@ -369,7 +367,7 @@ export default function Home() {
             return (
                 <div key={person.id} className={`group relative bg-white/5 backdrop-blur-md rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 ${glow}`}>
                   <div className="flex justify-between items-start mb-4">
-                     <div><h2 className="text-xl font-bold text-white">{person.full_name}</h2><div className="flex items-center gap-2 mt-1"><span className="text-xs font-bold px-2 py-0.5 rounded bg-white/10 text-slate-300 uppercase">{person.role}</span><span className="text-xs text-slate-500">{person.branch}</span></div></div>
+                     <div><h2 className="text-xl font-bold text-white leading-tight">{person.full_name}</h2><div className="flex items-center gap-2 mt-1"><span className="text-xs font-bold px-2 py-0.5 rounded bg-white/10 text-slate-300 uppercase">{person.role}</span><span className="text-xs text-slate-500">{person.branch}</span></div></div>
                      {person.payment_status !== 'Paid' && <span className="text-xs font-bold text-amber-400 bg-amber-900/30 px-2 py-1 rounded border border-amber-500/30">OWING</span>}
                   </div>
                   {person.checked_in ? (
@@ -420,37 +418,37 @@ export default function Home() {
                             <div className="flex justify-between mb-3 text-sm"><span className="text-slate-400">Paid Previously:</span><span className="font-mono font-bold text-white">₵{(selectedPerson.cash_amount||0) + (selectedPerson.momo_amount||0)}</span></div>
                             <div className="flex items-center gap-3">
                                 <span className="text-2xl font-bold text-green-500">+</span>
-                                {/* PREVENTS NEGATIVE INPUT */}
-                                <input type="number" min="0" className="w-full bg-transparent border-b-2 border-slate-600 focus:border-green-500 p-2 text-3xl font-mono font-bold text-white outline-none placeholder-slate-700" placeholder="0" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} />
+                                <input type="number" min="0" onKeyDown={(e) => ["-", "e", "+"].includes(e.key) && e.preventDefault()} className="w-full bg-transparent border-b-2 border-slate-600 focus:border-green-500 p-2 text-3xl font-mono font-bold text-white outline-none placeholder-slate-700" placeholder="0" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} />
                             </div>
                         </div>
                     </div>
                     <div className="p-6 bg-white/5 border-t border-white/10 flex gap-4">
                         <button onClick={() => setSelectedPerson(null)} className="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors">Cancel</button>
-                        <button onClick={reviewTransaction} className="flex-[2] py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-lg font-bold shadow-xl">Review Transaction</button>
+                        <button onClick={reviewTransaction} className="flex-[2] py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-lg font-bold shadow-xl">Process Payment</button>
                     </div>
                 </>
             )}
 
-            {/* VIEW 2: CONFIRMATION SCREEN */}
+            {/* VIEW 2: BEAUTIFUL CONFIRMATION */}
             {isConfirming && pendingTransaction && (
                 <>
                     <div className="p-8 space-y-6 text-center">
-                        <div className="bg-white/5 p-4 rounded-2xl border border-white/10 inline-block mb-2">
-                            <span className="text-3xl">🧾</span>
+                        <div className="flex flex-col items-center">
+                            <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2">Receiving</p>
+                            <h2 className="text-5xl font-mono font-bold text-white drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">₵{pendingTransaction.newAmount}</h2>
+                            <p className="text-indigo-300 font-bold mt-2 bg-indigo-900/30 px-3 py-1 rounded-full border border-indigo-500/30">via {pendingTransaction.paymentMethod}</p>
                         </div>
-                        <h3 className="text-xl font-bold text-white">Confirm Payment</h3>
                         
-                        <div className="bg-black/30 p-6 rounded-2xl border border-white/10 text-left space-y-3">
-                            <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-slate-400">Received Amount</span><span className="text-green-400 font-bold font-mono">+ ₵{pendingTransaction.newAmount}</span></div>
-                            <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-slate-400">Method</span><span className="text-white font-bold">{pendingTransaction.paymentMethod}</span></div>
-                            <div className="flex justify-between border-b border-white/10 pb-2"><span className="text-slate-400">New Total Paid</span><span className="text-white font-bold font-mono">₵{pendingTransaction.totalPaid}</span></div>
-                            <div className="flex justify-between pt-2"><span className="text-slate-400">Status</span><span className={`font-bold uppercase ${pendingTransaction.shouldCheckIn ? 'text-emerald-400' : 'text-amber-400'}`}>{pendingTransaction.shouldCheckIn ? 'Fully Paid (Check In)' : 'Still Owing'}</span></div>
+                        <div className="bg-white/5 p-6 rounded-2xl border border-white/5 text-left space-y-3 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+                            <div className="flex justify-between"><span className="text-slate-400">Previous Total</span><span className="text-slate-300 font-mono">₵{(selectedPerson.cash_amount||0) + (selectedPerson.momo_amount||0)}</span></div>
+                            <div className="flex justify-between border-t border-white/10 pt-2 mt-2"><span className="text-white font-bold">New Total Balance</span><span className="text-white font-bold font-mono">₵{pendingTransaction.totalPaid}</span></div>
+                            <div className="flex justify-between pt-2"><span className="text-slate-400">Status</span><span className={`font-bold uppercase tracking-wider ${pendingTransaction.shouldCheckIn ? 'text-emerald-400' : 'text-amber-400'}`}>{pendingTransaction.shouldCheckIn ? 'FULL PAYMENT' : 'PARTIAL'}</span></div>
                         </div>
                     </div>
                     <div className="p-6 bg-white/5 border-t border-white/10 flex gap-4">
                         <button onClick={() => setIsConfirming(false)} className="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors">Back</button>
-                        <button onClick={confirmAndSave} disabled={processing} className={`flex-[2] py-4 text-white rounded-xl text-lg font-bold shadow-xl transition-transform active:scale-95 ${pendingTransaction.shouldCheckIn ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-amber-600 hover:bg-amber-500'}`}>{processing ? 'Processing...' : 'CONFIRM & SAVE'}</button>
+                        <button onClick={confirmAndSave} disabled={processing} className={`flex-[2] py-4 text-white rounded-xl text-lg font-bold shadow-xl transition-transform active:scale-95 ${pendingTransaction.shouldCheckIn ? 'bg-gradient-to-r from-emerald-600 to-teal-600' : 'bg-gradient-to-r from-amber-600 to-orange-600'}`}>{processing ? 'Processing...' : 'CONFIRM & SAVE'}</button>
                     </div>
                 </>
             )}
