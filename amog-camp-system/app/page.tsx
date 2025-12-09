@@ -274,10 +274,13 @@ export default function Home() {
     showToast("Deleted.", 'success'); setSelectedPerson(null); await fetchPeople(); setProcessing(false);
   }
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault(); // REACT WAY: PREVENT RELOAD
-    const email = (e.target as any).email.value;
-    const password = (e.target as any).password.value;
+  // --- UPDATED LOGIN HANDLER (SECURITY FIX) ---
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault(); // 🔥 Stops URL refresh
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+    
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) showToast("Invalid Credentials", 'error');
   };
@@ -302,11 +305,11 @@ export default function Home() {
     yellow: people.filter(p => p.grace_school === 'Yellow House').length,
   };
 
-  // --- LOGIN SCREEN (GLASSMORPHISM + URL FIX) ---
+  // --- LOGIN SCREEN (GLASSMORPHISM) ---
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative font-sans overflow-hidden">
-         {/* Background with overlay */}
+         <style>{globalStyles}</style>
          <div className="absolute inset-0 z-0">
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-purple-900/80 to-black/90 z-10"></div>
             <img src="/camp-bg.png" className="w-full h-full object-cover" alt="Background" />
@@ -319,7 +322,7 @@ export default function Home() {
                     <div className="h-1 w-20 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mt-4 rounded-full"></div>
                     <p className="text-blue-200 mt-4 font-medium tracking-wide uppercase text-xs">Official Help Desk Portal</p>
                 </div>
-                {/* METHOD="POST" ADDED HERE FOR EXTRA SAFETY */}
+                {/* METHOD="POST" + TYPE="SUBMIT" FIXES URL ISSUE */}
                 <form onSubmit={handleLogin} method="POST" className="space-y-6">
                   <div>
                     <label className="text-xs font-bold text-blue-200 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label>
@@ -329,7 +332,7 @@ export default function Home() {
                     <label className="text-xs font-bold text-blue-200 uppercase ml-1 mb-2 block tracking-wider">Password</label>
                     <input name="password" type="password" className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" placeholder="••••••••" required />
                   </div>
-                  <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/50 transition-all transform hover:scale-[1.02] tracking-wide">
+                  <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/50 transition-all transform hover:scale-[1.02] tracking-wide">
                     Sign In
                   </button>
                 </form>
