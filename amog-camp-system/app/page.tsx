@@ -447,7 +447,7 @@ export default function Home() {
                         </div>
                     </div>
                     <div className="p-6 bg-white/5 border-t border-white/10 flex gap-4">
-                        <button onClick={() => setIsConfirming(false)} className="flex-1 py-4 font-bold text-slate-400 hover:text-white transition-colors">Back</button>
+                        <button onClick={() => setIsConfirming(false)} className="flex-1 py-4 font-bold text-slate-500 hover:text-white transition-colors">Back</button>
                         <button onClick={confirmAndSave} disabled={processing} className={`flex-[2] py-4 text-white rounded-xl text-lg font-bold shadow-xl transition-transform active:scale-95 ${pendingTransaction.shouldCheckIn ? 'bg-gradient-to-r from-emerald-600 to-teal-600' : 'bg-gradient-to-r from-amber-600 to-orange-600'}`}>{processing ? 'Processing...' : 'CONFIRM & SAVE'}</button>
                     </div>
                 </>
