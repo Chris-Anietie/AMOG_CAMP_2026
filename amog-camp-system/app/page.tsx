@@ -46,6 +46,48 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
+// --- DAILY AUDIT MODAL COMPONENT (NEW) ---
+function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: { dailyAudit: any, todaysTotal: number, onClose: () => void }) {
+    return (
+        <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl">
+                <div className="bg-gradient-to-r from-indigo-900/50 to-slate-900/50 p-6 border-b border-white/10 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-white">Daily Reconciliation Report</h2>
+                    <button onClick={onClose} className="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full text-white">✕</button>
+                </div>
+                <div className="p-6 space-y-4">
+                    
+                    {/* TOTAL REVENUE */}
+                    <div className="bg-emerald-900/40 p-4 rounded-xl border border-emerald-500/30 text-center">
+                        <p className="text-sm uppercase text-emerald-400 font-bold tracking-widest">Gross Revenue (Today)</p>
+                        <p className="text-4xl font-extrabold text-emerald-100">₵{todaysTotal}</p>
+                        <p className="text-xs text-slate-400 mt-1">{dailyAudit.count} total transactions recorded</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* CASH POCKET */}
+                        <div className="bg-black/30 p-4 rounded-xl border border-white/10">
+                            <p className="text-sm uppercase text-slate-400 font-bold">Cash Pocket</p>
+                            <p className="text-3xl font-extrabold text-white">₵{dailyAudit.cash}</p>
+                        </div>
+                        {/* MOMO POCKET */}
+                        <div className="bg-black/30 p-4 rounded-xl border border-white/10">
+                            <p className="text-sm uppercase text-slate-400 font-bold">MoMo Pocket</p>
+                            <p className="text-3xl font-extrabold text-white">₵{dailyAudit.momo}</p>
+                        </div>
+                    </div>
+
+                    <p className="text-xs text-slate-500 pt-2 text-center">
+                        *This report includes all transactions logged since midnight and is used to reconcile physical funds.*
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+}
+// --- END DAILY AUDIT MODAL COMPONENT ---
+
+
 export default function Home() {
   const [session, setSession] = useState<any>(null);
   const [people, setPeople] = useState<any[]>([]);
@@ -93,7 +135,7 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- AUDIT LOGIC (UPDATED) ---
+  // --- AUDIT LOGIC (MAIN CALCULATION) ---
   async function runDailyAudit() {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
@@ -122,14 +164,18 @@ export default function Home() {
     setShowDailyAuditModal(true); // Open the modal after calculating
   }
 
+
   // --- DATA FETCHING ---
   async function fetchPeople() {
     if (supabaseUrl.includes("PASTE_YOUR")) return;
     const { data } = await supabase.from('participants').select('*').order('full_name');
     setPeople(data || []);
+    // Note: The main dashboard total (todaysTotal) is updated here, relying on the background log parser
+    calculateTodaysTotal();
   }
 
   async function calculateTodaysTotal() {
+    // This function only updates the tiny dashboard counter at the top
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
     let sum = 0;
@@ -253,6 +299,7 @@ export default function Home() {
 
     if (error) { showToast("Error: " + error.message, 'error'); } 
     else {
+      // Log carefully so "Received Today" calculator works
       const logDetails = `Added ₵${pt.newAmount} via ${pt.paymentMethod}. Total: ₵${pt.totalPaid}. Status: ${pt.status}`;
       await logAction(pt.shouldCheckIn ? 'Check-In Payment' : 'Partial Payment', logDetails);
       await fetchPeople();
@@ -449,6 +496,15 @@ export default function Home() {
               </div>
            </div>
         </div>
+      )}
+      
+      {/* NEW: DAILY AUDIT MODAL */}
+      {showDailyAuditModal && (
+        <DailyAuditModal 
+            dailyAudit={dailyAudit} 
+            todaysTotal={todaysTotal} 
+            onClose={() => setShowDailyAuditModal(false)} 
+        />
       )}
 
       {selectedPerson && (
