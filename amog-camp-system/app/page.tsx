@@ -53,11 +53,15 @@ export default function Home() {
   const [filter, setFilter] = useState('all'); 
   const [isOnline, setIsOnline] = useState(true); 
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
-  const [todaysTotal, setTodaysTotal] = useState(0);
   
+  // AUDITING STATE
+  const [todaysTotal, setTodaysTotal] = useState(0);
+  const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 }); // NEW STATE FOR DAILY BREAKDOWN
+
   const [selectedPerson, setSelectedPerson] = useState<any>(null);
   const [isRegistering, setIsRegistering] = useState(false); 
   const [showHistory, setShowHistory] = useState(false);
+  const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); // NEW MODAL STATE
 
   // TRANSACTION STATE
   const [topUpAmount, setTopUpAmount] = useState<string>(''); 
@@ -89,12 +93,40 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // --- AUDIT LOGIC (UPDATED) ---
+  async function runDailyAudit() {
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
+
+    let cashSum = 0;
+    let momoSum = 0;
+    let paymentCount = 0;
+    
+    if (data) {
+        data.forEach(log => {
+            const amountMatch = log.details.match(/Added ₵(\d+)/);
+            if (amountMatch && amountMatch[1]) {
+                const amount = parseInt(amountMatch[1], 10);
+                paymentCount++;
+                
+                if (log.details.includes('Cash')) {
+                    cashSum += amount;
+                } else if (log.details.includes('MoMo')) {
+                    momoSum += amount;
+                }
+            }
+        });
+    }
+    setTodaysTotal(cashSum + momoSum);
+    setDailyAudit({ cash: cashSum, momo: momoSum, count: paymentCount });
+    setShowDailyAuditModal(true); // Open the modal after calculating
+  }
+
   // --- DATA FETCHING ---
   async function fetchPeople() {
     if (supabaseUrl.includes("PASTE_YOUR")) return;
     const { data } = await supabase.from('participants').select('*').order('full_name');
     setPeople(data || []);
-    calculateTodaysTotal();
   }
 
   async function calculateTodaysTotal() {
@@ -326,11 +358,11 @@ export default function Home() {
                 <form onSubmit={handleLogin} method="POST" className="space-y-6">
                   <div>
                     <label className="text-xs font-bold text-blue-200 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label>
-                    <input name="email" type="email" className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" placeholder="Enter email address" required />
+                    <input name="email" type="email" className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter email address" required />
                   </div>
                   <div>
                     <label className="text-xs font-bold text-blue-200 uppercase ml-1 mb-2 block tracking-wider">Password</label>
-                    <input name="password" type="password" className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" placeholder="••••••••" required />
+                    <input name="password" type="password" className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="••••••••" required />
                   </div>
                   <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/50 transition-all transform hover:scale-[1.02] tracking-wide">
                     Sign In
