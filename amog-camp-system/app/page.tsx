@@ -78,7 +78,7 @@ function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: { dailyAudit: any
                     </div>
 
                     <p className="text-xs text-slate-500 pt-2 text-center">
-                        *This report includes all transactions logged since midnight and is used to reconcile physical funds.*
+                        *This report includes all transactions logged since midnight.*
                     </p>
                 </div>
             </div>
@@ -253,7 +253,6 @@ export default function Home() {
     const shouldCheckIn = isFullyPaid; 
     
     // --- RANDOM SCHOOL ALLOCATION (FIXED) ---
-    // If they already have a school, keep it. If not, give them one NOW.
     const randomSchool = selectedPerson.grace_school || GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
 
     setPendingTransaction({
@@ -265,7 +264,7 @@ export default function Home() {
         balance,
         status,
         shouldCheckIn,
-        randomSchool // This is now always set
+        randomSchool
     });
 
     setIsConfirming(true);
@@ -284,7 +283,7 @@ export default function Home() {
       cash_amount: pt.newCash,
       momo_amount: pt.newMoMo,
       payment_status: pt.status, 
-      grace_school: pt.randomSchool, // Saves the school (Random or Existing)
+      grace_school: pt.randomSchool, 
       checked_in: pt.shouldCheckIn, 
       checked_in_at: pt.shouldCheckIn ? new Date().toISOString() : null, 
       checked_in_by: session?.user?.email
@@ -325,7 +324,7 @@ export default function Home() {
       full_name: newReg.full_name, phone_number: newReg.phone_number, role: newReg.role, branch: newReg.branch,
       t_shirt: newReg.t_shirt, invited_by: newReg.invited_by,
       payment_status: 'Pending', amount_paid: 0, cash_amount: 0, momo_amount: 0, checked_in: false,
-      grace_school: randomSchool // Assign immediate random school
+      grace_school: randomSchool
     }]).select();
 
     if (error) { showToast(error.message, 'error'); } 
@@ -373,6 +372,7 @@ export default function Home() {
     checkedIn: people.filter(p => p.checked_in).length, 
     totalCash: people.reduce((sum, p) => sum + (p.cash_amount || 0), 0),
     totalMomo: people.reduce((sum, p) => sum + (p.momo_amount || 0), 0),
+    // --- GRACE SCHOOL COUNTS ---
     red: people.filter(p => p.grace_school === 'Red House').length,
     blue: people.filter(p => p.grace_school === 'Blue House').length,
     green: people.filter(p => p.grace_school === 'Green House').length,
@@ -436,6 +436,27 @@ export default function Home() {
             <button onClick={() => supabase.auth.signOut()} className="bg-red-500/20 hover:bg-red-500/40 text-red-200 px-6 rounded-2xl border border-red-500/30 font-bold transition-all">Logout</button>
           </div>
         </div>
+
+        {/* --- GRACE SCHOOL COUNTER (NEWLY ADDED) --- */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="bg-red-900/30 border border-red-500/30 p-3 rounded-2xl text-center backdrop-blur-md">
+                <p className="text-[10px] uppercase text-red-400 font-bold tracking-wider">Red House</p>
+                <p className="text-xl font-bold text-white">{stats.red}</p>
+            </div>
+            <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-2xl text-center backdrop-blur-md">
+                <p className="text-[10px] uppercase text-blue-400 font-bold tracking-wider">Blue House</p>
+                <p className="text-xl font-bold text-white">{stats.blue}</p>
+            </div>
+            <div className="bg-emerald-900/30 border border-emerald-500/30 p-3 rounded-2xl text-center backdrop-blur-md">
+                <p className="text-[10px] uppercase text-emerald-400 font-bold tracking-wider">Green House</p>
+                <p className="text-xl font-bold text-white">{stats.green}</p>
+            </div>
+            <div className="bg-yellow-900/30 border border-yellow-500/30 p-3 rounded-2xl text-center backdrop-blur-md">
+                <p className="text-[10px] uppercase text-yellow-400 font-bold tracking-wider">Yellow House</p>
+                <p className="text-xl font-bold text-white">{stats.yellow}</p>
+            </div>
+        </div>
+        {/* --- END GRACE SCHOOL COUNTER --- */}
 
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-2 md:p-3 rounded-2xl mb-8 flex flex-col md:flex-row gap-3">
            <div className="flex-1 relative"><span className="absolute left-4 top-3.5 text-gray-400">🔍</span><input type="text" placeholder="Search..." className="w-full pl-10 pr-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500 outline-none" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
