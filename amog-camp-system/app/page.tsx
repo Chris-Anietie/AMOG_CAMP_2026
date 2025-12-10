@@ -38,6 +38,10 @@ const globalStyles = `
   input[type=number]::-webkit-inner-spin-button, 
   input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   input[type=number] { -moz-appearance: textfield; }
+  /* Custom scrollbar for better look */
+  .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
 `;
 
 // --- TOAST COMPONENT ---
@@ -54,6 +58,38 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
+// --- DAILY AUDIT MODAL COMPONENT ---
+function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: { dailyAudit: any, todaysTotal: number, onClose: () => void }) {
+    return (
+        <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl">
+                <div className="bg-gradient-to-r from-indigo-900/50 to-slate-900/50 p-6 border-b border-white/10 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-white">Daily Reconciliation</h2>
+                    <button onClick={onClose} className="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full text-white">✕</button>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div className="bg-emerald-900/40 p-4 rounded-xl border border-emerald-500/30 text-center">
+                        <p className="text-sm uppercase text-emerald-400 font-bold tracking-widest">Gross Revenue (Today)</p>
+                        <p className="text-4xl font-extrabold text-emerald-100">₵{todaysTotal}</p>
+                        <p className="text-xs text-slate-400 mt-1">{dailyAudit.count} total transactions</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-black/30 p-4 rounded-xl border border-white/10">
+                            <p className="text-sm uppercase text-slate-400 font-bold">Cash Pocket</p>
+                            <p className="text-3xl font-extrabold text-white">₵{dailyAudit.cash}</p>
+                        </div>
+                        <div className="bg-black/30 p-4 rounded-xl border border-white/10">
+                            <p className="text-sm uppercase text-slate-400 font-bold">MoMo Pocket</p>
+                            <p className="text-3xl font-extrabold text-white">₵{dailyAudit.momo}</p>
+                        </div>
+                    </div>
+                    <p className="text-xs text-slate-500 pt-2 text-center">*Based on transaction logs since midnight.*</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // --- MAIN COMPONENT ---
 export default function Home() {
   const [session, setSession] = useState<any>(null);
@@ -63,19 +99,22 @@ export default function Home() {
   const [isOnline, setIsOnline] = useState(true); 
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
   
+  const [todaysTotal, setTodaysTotal] = useState(0);
+  const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 });
+
   const [selectedPerson, setSelectedPerson] = useState<any>(null);
   const [isRegistering, setIsRegistering] = useState(false); 
   const [showHistory, setShowHistory] = useState(false);
+  const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); 
 
-  // TRANSACTION STATE
+  // MODAL MODE
+  const [modalMode, setModalMode] = useState<'payment' | 'checkin'>('payment');
+
   const [topUpAmount, setTopUpAmount] = useState<string>(''); 
   const [targetFee, setTargetFee] = useState(REG_FEE);
   const [paymentMethod, setPaymentMethod] = useState('Cash'); 
   const [processing, setProcessing] = useState(false);
   const [gender, setGender] = useState('Male');
-  
-  // MODAL MODE
-  const [modalMode, setModalMode] = useState<'payment' | 'checkin'>('payment');
   
   const [newReg, setNewReg] = useState({ full_name: '', phone_number: '', role: 'Member', branch: 'Main', t_shirt: 'L', invited_by: '' });
   const [toast, setToast] = useState<{msg: string, type: 'success' | 'error' | 'warning'} | null>(null);
@@ -92,10 +131,44 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
+  async function runDailyAudit() {
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
+    let cashSum = 0, momoSum = 0, paymentCount = 0;
+    if (data) {
+        data.forEach(log => {
+            const amountMatch = log.details.match(/Added ₵(\d+)/);
+            if (amountMatch && amountMatch[1]) {
+                const amount = parseInt(amountMatch[1], 10);
+                paymentCount++;
+                if (log.details.includes('Cash')) cashSum += amount;
+                else if (log.details.includes('MoMo')) momoSum += amount;
+            }
+        });
+    }
+    setTodaysTotal(cashSum + momoSum);
+    setDailyAudit({ cash: cashSum, momo: momoSum, count: paymentCount });
+    setShowDailyAuditModal(true); 
+  }
+
   async function fetchPeople() {
     if (supabaseUrl.includes("PASTE_YOUR")) return;
     const { data } = await supabase.from('participants').select('*').order('full_name');
     setPeople(data || []);
+    calculateTodaysTotal();
+  }
+
+  async function calculateTodaysTotal() {
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
+    let sum = 0;
+    if (data) {
+        data.forEach(log => {
+            const match = log.details.match(/Added ₵(\d+)/);
+            if (match && match[1]) sum += parseInt(match[1], 10);
+        });
+    }
+    setTodaysTotal(sum);
   }
 
   async function fetchHistory() {
@@ -150,7 +223,6 @@ export default function Home() {
     setModalMode('checkin');
   };
 
-  // --- PROCESS PAYMENT ---
   async function handleRecordPayment() {
     if (!isOnline) { showToast("Offline mode.", "error"); return; }
     const amount = Number(topUpAmount);
@@ -172,12 +244,11 @@ export default function Home() {
         showToast(`Payment recorded! Balance updated.`, 'success');
         setSelectedPerson((prev: any) => ({ ...prev, amount_paid: totalPaid, cash_amount: newCash, momo_amount: newMoMo, payment_status: status }));
         setTopUpAmount('');
-        setSelectedPerson(null); // Close modal after payment for speed
+        setSelectedPerson(null);
     }
     setProcessing(false);
   }
 
-  // --- PROCESS CHECK-IN ---
   async function handleFinalCheckIn() {
     if (!isOnline) { showToast("Offline mode.", "error"); return; }
     if (selectedPerson.amount_paid < targetFee) { showToast("Payment Incomplete.", "error"); return; }
@@ -234,6 +305,10 @@ export default function Home() {
     checkedIn: people.filter(p => p.checked_in).length, 
     totalCash: people.reduce((sum, p) => sum + (p.cash_amount || 0), 0),
     totalMomo: people.reduce((sum, p) => sum + (p.momo_amount || 0), 0),
+    red: people.filter(p => p.grace_school === 'Red House').length,
+    blue: people.filter(p => p.grace_school === 'Blue House').length,
+    green: people.filter(p => p.grace_school === 'Green House').length,
+    yellow: people.filter(p => p.grace_school === 'Yellow House').length,
   };
 
   if (!session) { return ( <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative font-sans overflow-hidden"><style>{globalStyles}</style><div className="absolute inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-br from-indigo-950/90 via-purple-900/80 to-black/90 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover scale-105" alt="Background" /></div><div className="relative z-20 w-full max-w-md p-6"><div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl"><div className="text-center mb-8"><h1 className="text-4xl font-extrabold text-white tracking-tight">AMOG <span className="text-indigo-400">2026</span></h1><p className="text-indigo-200 mt-2 font-medium tracking-wider uppercase text-[11px]">Staff Access Portal</p></div><form onSubmit={handleLogin} method="POST" className="space-y-5"><div><label className="text-[11px] font-bold text-indigo-300 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label><div className="relative"><User className="absolute left-4 top-3.5 w-5 h-5 text-indigo-400/60"/><input name="email" type="email" className="w-full pl-12 p-3.5 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-900/50 outline-none transition-all" placeholder="Enter email" required /></div></div><div><label className="text-[11px] font-bold text-indigo-300 uppercase ml-1 mb-2 block tracking-wider">Password</label><div className="relative"><Lock className="absolute left-4 top-3.5 w-5 h-5 text-indigo-400/60"/><input name="password" type="password" className="w-full pl-12 p-3.5 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-900/50 outline-none transition-all" placeholder="••••••••" required /></div></div><button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-900/30 transition-all">Secure Login</button></form></div></div>{toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}</div> ); }
@@ -241,7 +316,7 @@ export default function Home() {
   return (
     <div className="min-h-screen font-sans text-gray-100 bg-[#0f172a] relative pb-20 overflow-x-hidden">
       <style>{globalStyles}</style>
-      <div className="fixed inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-b from-slate-900/95 to-black/95 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-30 fixed" alt="bg" /></div>
+      <div className="fixed inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-b from-slate-900/95 to-black/95 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-50 fixed" alt="bg" /></div>
       {!isOnline && ( <div className="fixed top-0 left-0 right-0 bg-red-600/90 text-white text-center py-2 text-xs font-bold z-[200] backdrop-blur flex items-center justify-center gap-2"><AlertCircle className="w-4 h-4"/> OFFLINE MODE</div> )}
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
@@ -255,6 +330,15 @@ export default function Home() {
             <div className="bg-blue-900/30 backdrop-blur-md px-5 py-3 rounded-xl border border-blue-500/20 flex items-center gap-3"><CreditCard className="w-5 h-5 text-blue-400"/><div className="text-left"><p className="text-[10px] uppercase text-blue-400 font-bold tracking-wider">MoMo</p><p className="text-xl font-bold text-blue-100 font-mono leading-none">₵{stats.totalMomo}</p></div></div>
             <button onClick={() => supabase.auth.signOut()} className="bg-red-500/10 hover:bg-red-500/20 text-red-300 px-3 rounded-xl border border-red-500/20 transition-all flex items-center justify-center"><LogOut className="w-5 h-5"/></button>
           </div>
+        </div>
+
+        {/* CLICKABLE RECEIVED TODAY */}
+        <div className="flex justify-end mb-4">
+             <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md px-6 py-2 rounded-full border border-purple-500/30 text-center cursor-pointer hover:bg-purple-900/60 transition-all flex items-center gap-3">
+                <span className="text-xs uppercase text-purple-300 font-bold tracking-wider">Received Today</span>
+                <span className="text-lg font-bold text-white">₵{todaysTotal}</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></div>
+             </div>
         </div>
 
         {/* CONTROLS - CLEANER ICONS */}
@@ -290,9 +374,14 @@ export default function Home() {
 
             return (
                 <div key={p.id} className={`group relative bg-white/5 backdrop-blur-sm rounded-2xl p-5 border ${cardBorder} transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 hover:shadow-2xl flex flex-col`}>
+                  
+                  {/* YELLOW/GREEN ICON AT TOP RIGHT - CLICKABLE FOR FULL REPORT */}
+                  <div className="absolute top-4 right-4 cursor-pointer hover:scale-110 transition-transform" onClick={(e) => { e.stopPropagation(); openPayment(p); /* Opens modal to see details */ }}>
+                      {p.checked_in ? <CheckCircle className="w-6 h-6 text-indigo-500"/> : (isOwing ? <AlertCircle className="w-6 h-6 text-amber-500"/> : <CheckCircle className="w-6 h-6 text-emerald-500"/>)}
+                  </div>
+
                   <div className="flex justify-between items-start mb-3">
-                     <div><h2 className="text-lg font-bold text-white leading-tight truncate">{p.full_name}</h2><div className="flex items-center gap-2 mt-1 text-xs font-medium text-slate-400"><span className="bg-white/10 px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1"><User className="w-3 h-3"/>{p.role}</span><span className="flex items-center gap-1 truncate"><HomeIcon className="w-3 h-3"/>{p.branch}</span></div></div>
-                     {p.checked_in ? <CheckCircle className="w-6 h-6 text-indigo-500"/> : (isOwing ? <AlertCircle className="w-6 h-6 text-amber-500"/> : <CheckCircle className="w-6 h-6 text-emerald-500"/>)}
+                     <div><h2 className="text-lg font-bold text-white leading-tight truncate pr-8">{p.full_name}</h2><div className="flex items-center gap-2 mt-1 text-xs font-medium text-slate-400"><span className="bg-white/10 px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1"><User className="w-3 h-3"/>{p.role}</span><span className="flex items-center gap-1 truncate"><HomeIcon className="w-3 h-3"/>{p.branch}</span></div></div>
                   </div>
                   
                   <div className="flex-1 flex flex-col justify-center py-2 mb-4">
@@ -320,6 +409,12 @@ export default function Home() {
           })}
         </div>
       </div>
+
+      {showHistory && (<div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-[2px] animate-in fade-in"><div className="bg-[#161f32] border border-white/10 rounded-3xl w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95"><div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5"><h2 className="font-bold text-lg text-white flex items-center gap-2"><FileText className="w-5 h-5 text-indigo-400"/>Transaction History</h2><button onClick={() => setShowHistory(false)} className="bg-white/10 hover:bg-white/20 text-slate-300 w-8 h-8 rounded-full">✕</button></div><div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">{historyLogs.length === 0 ? (<div className="text-center text-slate-500 mt-10">No logs yet.</div>) : (historyLogs.map((log, i) => (<div key={i} className="p-4 rounded-2xl bg-black/30 border border-white/5"><div className="flex justify-between mb-2"><span className="font-mono text-[10px] text-indigo-400 uppercase tracking-wider">{new Date(log.created_at).toLocaleString()}</span><span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">{log.action_type}</span></div><p className="text-slate-200 text-sm font-medium">{log.details}</p><p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><User className="w-3 h-3"/> {log.staff_email}</p></div>)))}</div></div></div>)}
+      
+      {showDailyAuditModal && (
+        <DailyAuditModal dailyAudit={dailyAudit} todaysTotal={todaysTotal} onClose={() => setShowDailyAuditModal(false)} />
+      )}
 
       {/* UNIFIED ACTION MODAL - INTELLIGENT */}
       {selectedPerson && (
@@ -354,14 +449,15 @@ export default function Home() {
                             {selectedPerson.amount_paid >= targetFee ? 'CLEARED' : `OWES ₵${targetFee - selectedPerson.amount_paid}`}
                         </p>
                         <p className="text-xs text-slate-500 mt-2 font-mono">Total Paid: ₵{selectedPerson.amount_paid}</p>
+                        {selectedPerson.checked_in && <p className="text-xs text-emerald-400 mt-1 font-bold">Assigned: {selectedPerson.grace_school}</p>}
                     </div>
                     {selectedPerson.amount_paid < targetFee ? (
                         <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-200 text-sm text-center">
                             ⚠️ Full payment required before check-in.
                         </div>
                     ) : (
-                        <button onClick={handleFinalCheckIn} disabled={processing} className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xl font-bold shadow-xl transition-all">
-                            ✅ Admit & Assign House
+                        <button onClick={handleFinalCheckIn} disabled={processing || selectedPerson.checked_in} className={`w-full py-5 text-white rounded-xl text-xl font-bold shadow-xl transition-all ${selectedPerson.checked_in ? 'bg-white/10 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500'}`}>
+                            {selectedPerson.checked_in ? '✅ Already Checked In' : '✅ Admit & Assign House'}
                         </button>
                     )}
                 </div>
@@ -383,8 +479,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      {showHistory && (<div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-[2px] animate-in fade-in"><div className="bg-[#161f32] border border-white/10 rounded-3xl w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95"><div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5"><h2 className="font-bold text-lg text-white flex items-center gap-2"><FileText className="w-5 h-5 text-indigo-400"/>Transaction History</h2><button onClick={() => setShowHistory(false)} className="bg-white/10 hover:bg-white/20 text-slate-300 w-8 h-8 rounded-full">✕</button></div><div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">{historyLogs.length === 0 ? (<div className="text-center text-slate-500 mt-10">No logs yet.</div>) : (historyLogs.map((log, i) => (<div key={i} className="p-4 rounded-2xl bg-black/30 border border-white/5"><div className="flex justify-between mb-2"><span className="font-mono text-[10px] text-indigo-400 uppercase tracking-wider">{new Date(log.created_at).toLocaleString()}</span><span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">{log.action_type}</span></div><p className="text-slate-200 text-sm font-medium">{log.details}</p><p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><User className="w-3 h-3"/> {log.staff_email}</p></div>)))}</div></div></div>)}
     </div>
   );
 }
