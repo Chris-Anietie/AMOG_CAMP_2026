@@ -8,7 +8,7 @@ const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // CONSTANTS
-const GRACE_SCHOOLS = ['Red House', 'Blue House', 'Green House', 'Yellow House'];
+const GRACE_SCHOOLS = ['Group 1', 'Group 2', 'Group 3', 'Group 4'];
 const IDLE_TIMEOUT_SECONDS = 600; 
 const SUPER_ADMINS = ['admin@camp.com']; 
 
