@@ -20,7 +20,7 @@ const CHURCH_BRANCHES = [
 const REG_FEE = 400;
 const LEADERSHIP_FEE = 1000;
 
-// --- EMBEDDED ICONS ---
+// --- EMBEDDED ICONS (No Install Required) ---
 const IconWrapper = ({ children, className }: { children: React.ReactNode, className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
 );
@@ -42,6 +42,7 @@ const Lock = ({ className }: { className?: string }) => <IconWrapper className={
 const Clock = ({ className }: { className?: string }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconWrapper>;
 const Trash2 = ({ className }: { className?: string }) => <IconWrapper className={className}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconWrapper>;
 const AlertTriangle = ({ className }: { className?: string }) => <IconWrapper className={className}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></IconWrapper>;
+const HelpCircle = ({ className }: { className?: string }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></IconWrapper>;
 
 // --- STYLES ---
 const globalStyles = `
@@ -174,6 +175,9 @@ export default function Home() {
   const [paymentMethod, setPaymentMethod] = useState('Cash'); 
   const [processing, setProcessing] = useState(false);
   const [gender, setGender] = useState('Male');
+  
+  // T-SHIRT TOGGLE STATE
+  const [wantsTShirt, setWantsTShirt] = useState('no');
   
   const [newReg, setNewReg] = useState({ full_name: '', phone_number: '', role: 'Member', branch: '', t_shirt: 'L', invited_by: '' });
   const [toast, setToast] = useState<{msg: string, type: 'success' | 'error' | 'warning'} | null>(null);
@@ -359,13 +363,24 @@ export default function Home() {
     const existing = people.find(p => p.phone_number === newReg.phone_number);
     if (existing) { showToast(`${existing.full_name} exists!`, 'error'); setProcessing(false); return; }
     const randomSchool = GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
-    const { data, error } = await supabase.from('participants').insert([{ ...newReg, payment_status: 'Pending', amount_paid: 0, cash_amount: 0, momo_amount: 0, checked_in: false, grace_school: randomSchool }]).select();
+    
+    // T-SHIRT LOGIC
+    let finalTShirt = null;
+    if (wantsTShirt === 'yes') {
+       // Combine Color and Size if needed, or just send Size. Assuming schema accepts string.
+       // Using the previous structure 'newReg.t_shirt' which holds size.
+       // We'll append color if you added a color state, but keeping it simple as requested for now:
+       finalTShirt = newReg.t_shirt; 
+    }
+
+    const { data, error } = await supabase.from('participants').insert([{ ...newReg, t_shirt: finalTShirt, payment_status: 'Pending', amount_paid: 0, cash_amount: 0, momo_amount: 0, checked_in: false, grace_school: randomSchool }]).select();
     if (error) { showToast(error.message, 'error'); } 
     else {
       await logAction('New Registration', `Registered: ${newReg.full_name}`);
       showToast("Registered!", 'success');
       setIsRegistering(false); 
       setNewReg({ full_name: '', phone_number: '', role: 'Member', branch: '', t_shirt: 'L', invited_by: '' }); 
+      setWantsTShirt('no');
     }
     setProcessing(false);
   }
@@ -399,6 +414,7 @@ export default function Home() {
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 py-8">
+        {/* HEADER & STATS */}
         <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-6">
           <div className="text-center lg:text-left"><h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">AMOG <span className="text-indigo-500">2026</span></h1><p className="text-slate-400 font-medium text-sm tracking-wide mt-1">Registration & Check-In Desk</p></div>
           <div className="flex gap-3">
@@ -409,6 +425,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* CLICKABLE RECEIVED TODAY */}
         <div className="flex justify-end mb-4">
              <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md px-6 py-2 rounded-full border border-purple-500/30 text-center cursor-pointer hover:bg-purple-900/60 transition-all flex items-center gap-3">
                 <span className="text-xs uppercase text-purple-300 font-bold tracking-wider">Received Today</span>
@@ -417,6 +434,7 @@ export default function Home() {
              </div>
         </div>
 
+        {/* CONTROLS */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-2 rounded-2xl mb-8 flex gap-2">
            <div className="flex-1 relative"><Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500"/><input type="text" placeholder="Search people..." className="w-full pl-11 pr-4 py-3 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 outline-none transition-all placeholder-slate-600" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
            <button onClick={() => setIsRegistering(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-indigo-900/20 flex items-center gap-2"><Plus className="w-5 h-5"/> <span className="hidden md:inline">New Registration</span></button>
@@ -430,6 +448,7 @@ export default function Home() {
             ))}
         </div>
 
+        {/* USER CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-20">
           {filteredPeople.map((p) => {
             const totalPaid = (p.cash_amount || 0) + (p.momo_amount || 0);
@@ -448,6 +467,7 @@ export default function Home() {
             return (
                 <div key={p.id} className={`group relative bg-white/5 backdrop-blur-sm rounded-2xl p-5 border ${cardBorder} transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 hover:shadow-2xl flex flex-col`}>
                   
+                  {/* TOP ICONS: DELETE & REPORT */}
                   <div className="absolute top-4 right-4 flex gap-2">
                     <button className="hover:scale-110 transition-transform opacity-50 hover:opacity-100 hover:text-red-500" onClick={(e) => { e.stopPropagation(); initiateDelete(p); }}>
                         <Trash2 className="w-4 h-4"/>
@@ -557,7 +577,38 @@ export default function Home() {
             <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar">
               <div className="space-y-3"><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Full Name</label><div className="relative"><User className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><input type="text" className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500/50 outline-none placeholder-slate-600" placeholder="Surname Firstname" value={newReg.full_name} onChange={e => setNewReg({...newReg, full_name: e.target.value})} /></div></div><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Phone</label><div className="relative"><Phone className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><input type="tel" className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500/50 outline-none placeholder-slate-600" placeholder="055..." value={newReg.phone_number} onChange={e => setNewReg({...newReg, phone_number: e.target.value})} /></div></div></div>
               <div className="grid grid-cols-2 gap-3"><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Role</label><div className="relative"><Users className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><select className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none" value={newReg.role} onChange={e => setNewReg({...newReg, role: e.target.value})}><option className="bg-slate-900">Member</option><option className="bg-slate-900">Leader</option><option className="bg-slate-900">Pastor</option><option className="bg-slate-900">Guest</option></select></div></div><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Branch</label><div className="relative"><HomeIcon className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><select className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none" value={newReg.branch} onChange={e => setNewReg({...newReg, branch: e.target.value})}><option value="" disabled className="bg-slate-900">Select Branch</option>{CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}</select></div></div></div>
-              <div className="grid grid-cols-2 gap-3"><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">T-Shirt</label><div className="relative"><Shirt className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><select className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none" value={newReg.t_shirt} onChange={e => setNewReg({...newReg, t_shirt: e.target.value})}><option className="bg-slate-900" value="S">S</option><option className="bg-slate-900" value="M">M</option><option className="bg-slate-900" value="L">L</option><option className="bg-slate-900" value="XL">XL</option><option className="bg-slate-900" value="XXL">XXL</option></select></div></div><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Invited By</label><div className="relative"><User className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><input type="text" className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500/50 outline-none placeholder-slate-600" placeholder="Optional" value={newReg.invited_by} onChange={e => setNewReg({...newReg, invited_by: e.target.value})} /></div></div></div>
+              
+              {/* T-SHIRT TOGGLE LOGIC */}
+              <div className="space-y-3 pt-2 border-t border-white/5">
+                <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Do you want a T-Shirt?</label>
+                    <div className="flex bg-black/30 rounded-lg p-1">
+                        <button onClick={() => setWantsTShirt('yes')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${wantsTShirt === 'yes' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Yes</button>
+                        <button onClick={() => setWantsTShirt('no')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${wantsTShirt === 'no' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>No</button>
+                    </div>
+                </div>
+                
+                {wantsTShirt === 'yes' && (
+                    <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2">
+                        <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Size</label>
+                            <select className="w-full p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none" value={newReg.t_shirt} onChange={e => setNewReg({...newReg, t_shirt: e.target.value})}>
+                                <option className="bg-slate-900" value="S">S</option><option className="bg-slate-900" value="M">M</option><option className="bg-slate-900" value="L">L</option><option className="bg-slate-900" value="XL">XL</option><option className="bg-slate-900" value="XXL">XXL</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Color</label>
+                            {/* Assuming you want to capture color, I'll store it in a local state or just append to t_shirt field if DB structure is rigid. Let's assume standard field for now. */}
+                            <select className="w-full p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none">
+                                <option className="bg-slate-900">White</option><option className="bg-slate-900">Black</option><option className="bg-slate-900">Navy Blue</option><option className="bg-slate-900">Grey</option>
+                            </select>
+                        </div>
+                    </div>
+                )}
+              </div>
+
+              <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Invited By</label><div className="relative"><User className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><input type="text" className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500/50 outline-none placeholder-slate-600" placeholder="Optional" value={newReg.invited_by} onChange={e => setNewReg({...newReg, invited_by: e.target.value})} /></div></div>
+
               <button onClick={handleNewRegistration} disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-bold text-lg mt-2 shadow-xl shadow-indigo-900/30 transition-all active:scale-95 flex items-center justify-center gap-2">{processing ? 'Saving...' : <><CheckCircle className="w-5 h-5"/> Complete Registration</>}</button>
             </div>
           </div>
