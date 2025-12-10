@@ -8,7 +8,7 @@ const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // CONSTANTS
-const GRACE_SCHOOLS = ['Group 1', 'Group 2', 'Group 3', 'Group 4'];
+const GRACE_SCHOOLS = ['Red House', 'Blue House', 'Green House', 'Yellow House'];
 const IDLE_TIMEOUT_SECONDS = 600; 
 const SUPER_ADMINS = ['admin@camp.com']; 
 
@@ -52,14 +52,14 @@ function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: { dailyAudit: any
         <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
             <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl">
                 <div className="bg-gradient-to-r from-indigo-900/50 to-slate-900/50 p-6 border-b border-white/10 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-white">Daily Reconciliation Report</h2>
+                    <h2 className="text-2xl font-bold text-white">Daily Reconciliation</h2>
                     <button onClick={onClose} className="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full text-white">✕</button>
                 </div>
                 <div className="p-6 space-y-4">
                     <div className="bg-emerald-900/40 p-4 rounded-xl border border-emerald-500/30 text-center">
                         <p className="text-sm uppercase text-emerald-400 font-bold tracking-widest">Gross Revenue (Today)</p>
                         <p className="text-4xl font-extrabold text-emerald-100">₵{todaysTotal}</p>
-                        <p className="text-xs text-slate-400 mt-1">{dailyAudit.count} total transactions recorded</p>
+                        <p className="text-xs text-slate-400 mt-1">{dailyAudit.count} total transactions</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="bg-black/30 p-4 rounded-xl border border-white/10">
@@ -71,7 +71,7 @@ function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: { dailyAudit: any
                             <p className="text-3xl font-extrabold text-white">₵{dailyAudit.momo}</p>
                         </div>
                     </div>
-                    <p className="text-xs text-slate-500 pt-2 text-center">*Includes all transactions logged since midnight.*</p>
+                    <p className="text-xs text-slate-500 pt-2 text-center">*Based on transaction logs since midnight.*</p>
                 </div>
             </div>
         </div>
@@ -202,14 +202,20 @@ export default function Home() {
     showToast("Exported", "success");
   };
 
-  const openCheckIn = (person: any) => {
+  // --- OPENING MODAL IN SPECIFIC MODES ---
+  const openPayment = (person: any) => {
     setSelectedPerson(person);
-    const isLeader = person.role?.toLowerCase().includes('leader') || person.role?.toLowerCase().includes('pastor');
-    setTargetFee(isLeader ? 1000 : 400);
+    setTargetFee(400); 
     setTopUpAmount(''); 
     setPaymentMethod('Cash'); 
     setGender(person.gender || 'Male');
-    setActiveTab('payment'); // Default to payment tab
+    setActiveTab('payment'); // Forces the Payment Tab
+  };
+
+  const openCheckIn = (person: any) => {
+    setSelectedPerson(person);
+    setTargetFee(400); 
+    setActiveTab('checkin'); // Forces the Check-In Tab
   };
 
   // --- 1. RECORD PAYMENT ONLY ---
@@ -250,7 +256,7 @@ export default function Home() {
         await fetchPeople();
         showToast(`Payment of ₵${amount} recorded!`, 'success');
         
-        // FIXED TYPE ERROR HERE BY ADDING (prev: any)
+        // --- FIX FOR TYPESCRIPT ERROR (prev: any) ---
         setSelectedPerson((prev: any) => ({
             ...prev,
             amount_paid: totalPaid,
@@ -259,7 +265,9 @@ export default function Home() {
             payment_status: status
         }));
         setTopUpAmount('');
-        setActiveTab('checkin'); // Auto-switch to check-in tab after payment
+        // Option: Switch to Check-in tab automatically after payment?
+        // setActiveTab('checkin'); 
+        // For now, let's keep them on payment to add more if needed
     }
     setProcessing(false);
   }
@@ -307,10 +315,13 @@ export default function Home() {
     const existing = people.find(p => p.phone_number === newReg.phone_number);
     if (existing) { showToast(`${existing.full_name} exists!`, 'error'); setProcessing(false); return; }
 
+    const randomSchool = GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
+
     const { data, error } = await supabase.from('participants').insert([{
       full_name: newReg.full_name, phone_number: newReg.phone_number, role: newReg.role, branch: newReg.branch,
       t_shirt: newReg.t_shirt, invited_by: newReg.invited_by,
-      payment_status: 'Pending', amount_paid: 0, cash_amount: 0, momo_amount: 0, checked_in: false
+      payment_status: 'Pending', amount_paid: 0, cash_amount: 0, momo_amount: 0, checked_in: false,
+      grace_school: randomSchool
     }]).select();
 
     if (error) { showToast(error.message, 'error'); } 
@@ -319,7 +330,7 @@ export default function Home() {
       showToast("Registered!", 'success');
       setIsRegistering(false); 
       setNewReg({ full_name: '', phone_number: '', role: 'Member', branch: 'Main', t_shirt: 'L', invited_by: '' }); 
-      if (data && data[0]) openCheckIn(data[0]); 
+      // Do not auto-open checkin, let them choose
     }
     setProcessing(false);
   }
@@ -439,17 +450,22 @@ export default function Home() {
                      <div><h2 className="text-xl font-bold text-white leading-tight">{person.full_name}</h2><div className="flex items-center gap-2 mt-1"><span className="text-xs font-bold px-2 py-0.5 rounded bg-white/10 text-slate-300 uppercase">{person.role}</span><span className="text-xs text-slate-500">{person.branch}</span></div></div>
                      {person.payment_status !== 'Paid' && <span className="text-xs font-bold text-amber-400 bg-amber-900/30 px-2 py-1 rounded border border-amber-500/30">OWING</span>}
                   </div>
-                  {person.checked_in ? (
-                     <div className="bg-emerald-900/20 p-4 rounded-xl border border-emerald-500/30 flex justify-between items-center">
-                        <div><p className="text-[10px] uppercase text-emerald-400 font-bold">House</p><p className="font-bold text-white text-lg">{person.grace_school}</p></div>
-                        <div className="text-right"><p className="text-[10px] uppercase text-emerald-400 font-bold">Total Paid</p><p className="text-emerald-300 font-mono text-lg">₵{totalPaid}</p></div>
-                     </div>
-                  ) : (
-                    <div>
-                         <div className="flex justify-between items-center mb-3"><span className="text-sm text-slate-400">Paid so far:</span><span className={`font-mono font-bold text-lg ${isPartial ? 'text-amber-400' : 'text-slate-500'}`}>₵{totalPaid}</span></div>
-                         <button onClick={() => openCheckIn(person)} className={`w-full py-3 rounded-xl font-bold shadow-lg transition-all ${isPartial ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white border border-white/10'}`}>{isPartial ? 'Complete Payment' : 'Check In'}</button>
-                    </div>
-                  )}
+                  
+                  {/* TWO BUTTONS ON THE CARD */}
+                  <div className="flex gap-2">
+                    <button onClick={() => openPayment(person)} className="flex-1 py-3 bg-indigo-600/80 hover:bg-indigo-600 text-white rounded-xl font-bold text-sm shadow transition-all">
+                        💰 Pay
+                    </button>
+                    {person.checked_in ? (
+                         <div className="flex-1 py-3 bg-emerald-900/40 border border-emerald-500/30 rounded-xl text-center">
+                            <span className="text-xs font-bold text-emerald-400 uppercase">Checked In</span>
+                         </div>
+                    ) : (
+                        <button onClick={() => openCheckIn(person)} className="flex-1 py-3 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-xl font-bold text-sm shadow transition-all">
+                            ✅ Admit
+                        </button>
+                    )}
+                  </div>
                 </div>
             );
           })}
@@ -475,7 +491,10 @@ export default function Home() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in zoom-in-95">
           <div className="bg-[#0f172a] border border-white/10 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
             <div className="bg-gradient-to-r from-indigo-900/50 to-slate-900/50 p-6 border-b border-white/10 flex justify-between items-center">
-               <div><h2 className="text-2xl font-bold text-white">{selectedPerson.full_name}</h2><span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">{selectedPerson.role}</span></div>
+               <div>
+                 <h2 className="text-2xl font-bold text-white">{selectedPerson.full_name}</h2>
+                 <span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">{activeTab === 'payment' ? 'Record Payment' : 'Check-In'}</span>
+               </div>
                <button onClick={() => setSelectedPerson(null)} className="bg-white/10 hover:bg-white/20 text-white w-10 h-10 rounded-full">✕</button>
             </div>
             
@@ -487,7 +506,7 @@ export default function Home() {
             
             {/* TAB CONTENT: PAYMENT */}
             {activeTab === 'payment' && (
-                <div className="p-6 space-y-4 animate-in slide-in-from-left-4 fade-in duration-200">
+                <div className="p-6 space-y-4 animate-in fade-in duration-200">
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Method</label><select className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-indigo-500" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option className="bg-slate-800" value="Cash">💵 Cash</option><option className="bg-slate-800" value="MoMo">📱 MoMo</option></select></div>
                         <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Gender</label><div className="flex bg-white/5 rounded-xl p-1 border border-white/10"><button disabled={!!selectedPerson.gender} onClick={() => setGender('Male')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Male' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}>Male</button><button disabled={!!selectedPerson.gender} onClick={() => setGender('Female')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Female' ? 'bg-pink-600 text-white' : 'text-slate-500'}`}>Female</button></div></div>
@@ -496,14 +515,14 @@ export default function Home() {
                         <span className="text-2xl font-bold text-green-500">+</span>
                         <input type="number" min="0" onKeyDown={(e) => ["-", "e", "+"].includes(e.key) && e.preventDefault()} className="w-full bg-transparent border-none p-0 text-3xl font-mono font-bold text-white outline-none placeholder-slate-700" placeholder="0" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} />
                     </div>
-                    <button onClick={handleRecordPayment} disabled={processing} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-lg font-bold shadow-xl">💰 Record Payment Only</button>
+                    <button onClick={handleRecordPayment} disabled={processing} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-lg font-bold shadow-xl">💰 Record Payment</button>
                     <p className="text-[10px] text-center text-slate-500 uppercase tracking-wide">This will NOT check the person in.</p>
                 </div>
             )}
 
             {/* TAB CONTENT: CHECK-IN */}
             {activeTab === 'checkin' && (
-                <div className="p-6 space-y-6 animate-in slide-in-from-right-4 fade-in duration-200">
+                <div className="p-6 space-y-6 animate-in fade-in duration-200">
                     <div className="bg-white/5 p-6 rounded-2xl border border-white/10 text-center">
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Current Balance</p>
                         <p className={`text-4xl font-extrabold ${selectedPerson.amount_paid >= targetFee ? 'text-emerald-400' : 'text-amber-500'}`}>
@@ -511,17 +530,9 @@ export default function Home() {
                         </p>
                         <p className="text-xs text-slate-500 mt-2 font-mono">Total Paid: ₵{selectedPerson.amount_paid}</p>
                     </div>
-
-                    {selectedPerson.checked_in ? (
-                        <div className="bg-emerald-900/30 p-4 rounded-xl border border-emerald-500/30 text-center">
-                            <p className="text-emerald-200 font-bold">✅ User is already Checked In</p>
-                            <p className="text-xs text-emerald-400 mt-1">House: {selectedPerson.grace_school}</p>
-                        </div>
-                    ) : (
-                        <button onClick={handleFinalCheckIn} disabled={processing || selectedPerson.amount_paid < targetFee} className={`w-full py-5 text-white rounded-xl text-xl font-bold shadow-xl transition-all ${selectedPerson.amount_paid >= targetFee ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-white/10 text-slate-500 cursor-not-allowed'}`}>
-                            {selectedPerson.amount_paid >= targetFee ? '✅ Admit & Assign House' : '🔒 Locked (Payment Required)'}
-                        </button>
-                    )}
+                    <button onClick={handleFinalCheckIn} disabled={processing || selectedPerson.amount_paid < targetFee} className={`w-full py-5 text-white rounded-xl text-xl font-bold shadow-xl transition-all ${selectedPerson.amount_paid >= targetFee ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-white/10 text-slate-500 cursor-not-allowed'}`}>
+                        {selectedPerson.amount_paid >= targetFee ? '✅ Admit & Assign House' : '🔒 Locked (Payment Required)'}
+                    </button>
                 </div>
             )}
           </div>
