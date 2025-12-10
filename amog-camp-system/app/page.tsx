@@ -250,7 +250,8 @@ export default function Home() {
         await fetchPeople();
         showToast(`Payment of ₵${amount} recorded!`, 'success');
         
-        setSelectedPerson(prev => ({
+        // FIXED TYPE ERROR HERE BY ADDING (prev: any)
+        setSelectedPerson((prev: any) => ({
             ...prev,
             amount_paid: totalPaid,
             cash_amount: newCash,
@@ -306,13 +307,10 @@ export default function Home() {
     const existing = people.find(p => p.phone_number === newReg.phone_number);
     if (existing) { showToast(`${existing.full_name} exists!`, 'error'); setProcessing(false); return; }
 
-    const randomSchool = GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
-
     const { data, error } = await supabase.from('participants').insert([{
       full_name: newReg.full_name, phone_number: newReg.phone_number, role: newReg.role, branch: newReg.branch,
       t_shirt: newReg.t_shirt, invited_by: newReg.invited_by,
-      payment_status: 'Pending', amount_paid: 0, cash_amount: 0, momo_amount: 0, checked_in: false,
-      grace_school: randomSchool
+      payment_status: 'Pending', amount_paid: 0, cash_amount: 0, momo_amount: 0, checked_in: false
     }]).select();
 
     if (error) { showToast(error.message, 'error'); } 
