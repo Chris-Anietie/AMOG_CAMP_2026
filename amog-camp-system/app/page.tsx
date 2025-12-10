@@ -9,11 +9,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // CONSTANTS
 const GRACE_SCHOOLS = ['Red House', 'Blue House', 'Green House', 'Yellow House'];
-const SUPER_ADMINS = ['admin@camp.com']; 
 const REG_FEE = 400;
 const LEADERSHIP_FEE = 1000;
 
-// --- EMBEDDED ICONS ---
+// --- EMBEDDED ICONS (No Install Required) ---
 const IconWrapper = ({ children, className }: { children: React.ReactNode, className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
 );
@@ -33,6 +32,7 @@ const Phone = ({ className }: { className?: string }) => <IconWrapper className=
 const Shirt = ({ className }: { className?: string }) => <IconWrapper className={className}><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></IconWrapper>;
 const Lock = ({ className }: { className?: string }) => <IconWrapper className={className}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></IconWrapper>;
 const Clock = ({ className }: { className?: string }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconWrapper>;
+const Trash2 = ({ className }: { className?: string }) => <IconWrapper className={className}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconWrapper>;
 
 // --- STYLES ---
 const globalStyles = `
@@ -57,27 +57,20 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
-// --- NEW COMPONENT: USER REPORT MODAL (Triggered by Icon) ---
+// --- NEW COMPONENT: USER REPORT MODAL ---
 function UserReportModal({ person, logs, onClose }: { person: any, logs: any[], onClose: () => void }) {
-    // Filter logs for this specific person
-    const userLogs = logs.filter(log => log.details.includes(person.full_name) || log.details.includes(person.phone_number));
+    const userLogs = logs.filter(log => log.details.includes(person.full_name));
 
     return (
         <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
             <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
                 <div className="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-6 border-b border-white/10 flex justify-between items-center shrink-0">
-                    <div>
-                        <h2 className="text-xl font-bold text-white">{person.full_name}</h2>
-                        <span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">Account History Report</span>
-                    </div>
+                    <div><h2 className="text-xl font-bold text-white">{person.full_name}</h2><span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">Activity Log</span></div>
                     <button onClick={onClose} className="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full text-white flex items-center justify-center">✕</button>
                 </div>
                 <div className="p-0 flex-1 overflow-y-auto custom-scrollbar">
                     {userLogs.length === 0 ? (
-                        <div className="p-10 text-center text-slate-500">
-                            <Clock className="w-12 h-12 mx-auto mb-3 opacity-20"/>
-                            <p>No activity recorded yet.</p>
-                        </div>
+                        <div className="p-10 text-center text-slate-500"><Clock className="w-12 h-12 mx-auto mb-3 opacity-20"/><p>No activity recorded yet.</p></div>
                     ) : (
                         <div className="divide-y divide-white/5">
                             {userLogs.map((log, i) => (
@@ -87,16 +80,11 @@ function UserReportModal({ person, logs, onClose }: { person: any, logs: any[], 
                                         <span className="text-[10px] font-mono text-slate-500">{new Date(log.created_at).toLocaleString()}</span>
                                     </div>
                                     <p className="text-sm text-slate-200 leading-snug">{log.details}</p>
-                                    <p className="text-[10px] text-indigo-400 mt-2 flex items-center gap-1">
-                                        <User className="w-3 h-3"/> {log.staff_email}
-                                    </p>
+                                    <p className="text-[10px] text-indigo-400 mt-2 flex items-center gap-1"><User className="w-3 h-3"/> {log.staff_email}</p>
                                 </div>
                             ))}
                         </div>
                     )}
-                </div>
-                <div className="p-4 bg-black/20 border-t border-white/10 text-center">
-                    <p className="text-xs text-slate-500">End of Report</p>
                 </div>
             </div>
         </div>
@@ -119,14 +107,8 @@ function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: { dailyAudit: any
                         <p className="text-xs text-slate-400 mt-2">{dailyAudit.count} transactions recorded today</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-black/30 p-4 rounded-xl border border-white/10 text-center">
-                            <p className="text-xs uppercase text-slate-400 font-bold mb-1">Cash Drawer</p>
-                            <p className="text-2xl font-mono font-bold text-white">₵{dailyAudit.cash}</p>
-                        </div>
-                        <div className="bg-black/30 p-4 rounded-xl border border-white/10 text-center">
-                            <p className="text-xs uppercase text-slate-400 font-bold mb-1">MoMo Wallet</p>
-                            <p className="text-2xl font-mono font-bold text-white">₵{dailyAudit.momo}</p>
-                        </div>
+                        <div className="bg-black/30 p-4 rounded-xl border border-white/10 text-center"><p className="text-xs uppercase text-slate-400 font-bold mb-1">Cash Drawer</p><p className="text-2xl font-mono font-bold text-white">₵{dailyAudit.cash}</p></div>
+                        <div className="bg-black/30 p-4 rounded-xl border border-white/10 text-center"><p className="text-xs uppercase text-slate-400 font-bold mb-1">MoMo Wallet</p><p className="text-2xl font-mono font-bold text-white">₵{dailyAudit.momo}</p></div>
                     </div>
                 </div>
             </div>
@@ -142,13 +124,11 @@ export default function Home() {
   const [isOnline, setIsOnline] = useState(true); 
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
   
-  // STATE
   const [todaysTotal, setTodaysTotal] = useState(0);
   const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 });
 
   const [selectedPerson, setSelectedPerson] = useState<any>(null); // For Payment/Checkin Modal
   const [reportPerson, setReportPerson] = useState<any>(null); // NEW: For Report Modal
-
   const [isRegistering, setIsRegistering] = useState(false); 
   const [showHistory, setShowHistory] = useState(false);
   const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); 
@@ -175,20 +155,12 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- FIXED AUDIT LOGIC (REGEX FIX) ---
   async function runDailyAudit() {
     const today = new Date().toISOString().split('T')[0];
-    // Fetch logs from today involving payments
-    const { data } = await supabase.from('audit_logs')
-      .select('details')
-      .gte('created_at', today)
-      .ilike('action_type', '%Payment%');
-
+    const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
     let cashSum = 0, momoSum = 0, paymentCount = 0;
-    
     if (data) {
         data.forEach(log => {
-            // Regex matches "₵" followed by digits. Works for "Recorded ₵500" or "Added ₵500"
             const amountMatch = log.details.match(/₵\s*(\d+)/); 
             if (amountMatch && amountMatch[1]) {
                 const amount = parseInt(amountMatch[1], 10);
@@ -207,10 +179,9 @@ export default function Home() {
     if (supabaseUrl.includes("PASTE_YOUR")) return;
     const { data } = await supabase.from('participants').select('*').order('full_name');
     setPeople(data || []);
-    calculateTodaysTotal(); // Update the dash counter
+    calculateTodaysTotal(); 
   }
 
-  // Same logic as runDailyAudit but just for the small counter number
   async function calculateTodaysTotal() {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
@@ -227,13 +198,12 @@ export default function Home() {
   async function fetchHistory() {
     const { data } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100);
     setHistoryLogs(data || []);
-    // Don't auto open history, just fetch it
   }
 
   useEffect(() => { 
     if (session) {
       fetchPeople(); 
-      fetchHistory(); // Fetch logs on load so Report Modal works immediately
+      fetchHistory(); 
       const channel = supabase.channel('participants_changes').on('postgres_changes', { event: '*', schema: 'public', table: 'participants' }, () => { fetchPeople(); }).subscribe();
       return () => { supabase.removeChannel(channel); };
     }
@@ -244,7 +214,7 @@ export default function Home() {
   async function logAction(action: string, details: string) {
     if (!isOnline) return; 
     await supabase.from('audit_logs').insert([{ staff_email: session?.user?.email, action_type: action, details: details }]);
-    fetchHistory(); // Refresh logs immediately after action
+    fetchHistory(); 
   }
 
   const downloadCSV = () => {
@@ -279,9 +249,24 @@ export default function Home() {
   };
 
   const openReport = (person: any) => {
-      // NEW: Opens the report modal instead of payment modal
       setReportPerson(person);
   };
+
+  // --- DELETE FUNCTIONALITY ---
+  async function handleDelete(person: any) {
+    if (!isOnline) return;
+    if (!confirm(`⚠️ ARE YOU SURE?\n\nDeleting ${person.full_name} is permanent.\nThis will be logged.`)) return;
+    
+    // Log the deletion BEFORE deleting (audit trail)
+    await logAction('Delete User', `Deleted user: ${person.full_name} (${person.phone_number}).`);
+    
+    const { error } = await supabase.from('participants').delete().eq('id', person.id);
+    if (error) showToast("Error deleting: " + error.message, 'error');
+    else {
+        showToast("User deleted successfully.", 'success');
+        fetchPeople();
+    }
+  }
 
   async function handleRecordPayment() {
     if (!isOnline) { showToast("Offline mode.", "error"); return; }
@@ -299,7 +284,6 @@ export default function Home() {
 
     if (error) { showToast("Error: " + error.message, 'error'); } 
     else {
-        // Log "Recorded" to match regex
         await logAction('Payment Received', `Recorded ₵${amount} via ${paymentMethod}. New Total: ₵${totalPaid}.`);
         await fetchPeople();
         showToast(`Payment recorded! Balance updated.`, 'success');
@@ -401,6 +385,7 @@ export default function Home() {
            <button onClick={downloadCSV} className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 px-4 py-3 rounded-xl font-bold border border-emerald-500/20 flex items-center gap-2"><Download className="w-5 h-5"/></button>
         </div>
 
+        {/* FILTERS */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
             {['all', 'checked_in', 'owing', 'paid'].map(f => (
                 <button key={f} onClick={() => setFilter(f)} className={`px-5 py-2 rounded-full font-bold text-xs uppercase tracking-wider border transition-all ${filter === f ? 'bg-white text-slate-900 border-white shadow-md' : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-300'}`}>{f.replace('_', ' ')}</button>
@@ -426,9 +411,14 @@ export default function Home() {
             return (
                 <div key={p.id} className={`group relative bg-white/5 backdrop-blur-sm rounded-2xl p-5 border ${cardBorder} transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 hover:shadow-2xl flex flex-col`}>
                   
-                  {/* ICON FOR REPORT - CLICK TO OPEN REPORT MODAL */}
-                  <div className="absolute top-4 right-4 cursor-pointer hover:scale-110 transition-transform" onClick={(e) => { e.stopPropagation(); openReport(p); }}>
-                      {p.checked_in ? <CheckCircle className="w-6 h-6 text-indigo-500"/> : (isOwing ? <AlertCircle className="w-6 h-6 text-amber-500"/> : <CheckCircle className="w-6 h-6 text-emerald-500"/>)}
+                  {/* TOP ICONS: DELETE & REPORT */}
+                  <div className="absolute top-4 right-4 flex gap-2">
+                    <button className="hover:scale-110 transition-transform opacity-50 hover:opacity-100 hover:text-red-500" onClick={(e) => { e.stopPropagation(); handleDelete(p); }}>
+                        <Trash2 className="w-4 h-4"/>
+                    </button>
+                    <button className="hover:scale-110 transition-transform" onClick={(e) => { e.stopPropagation(); openReport(p); }}>
+                        {p.checked_in ? <CheckCircle className="w-6 h-6 text-indigo-500"/> : (isOwing ? <AlertCircle className="w-6 h-6 text-amber-500"/> : <CheckCircle className="w-6 h-6 text-emerald-500"/>)}
+                    </button>
                   </div>
 
                   <div className="flex justify-between items-start mb-3">
@@ -485,7 +475,7 @@ export default function Home() {
             {modalMode === 'payment' ? (
                 <div className="p-6 space-y-4 animate-in fade-in duration-200">
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Method</label><select className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-indigo-500" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option className="bg-slate-800" value="Cash">💵 Cash</option><option className="bg-slate-800" value="MoMo">📱 MoMo</option></select></div>
+                        <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Method</label><select className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-indigo-500" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option className="bg-slate-900" value="Cash">Cash</option><option className="bg-slate-900" value="MoMo">MoMo</option></select></div>
                         <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Gender</label><div className="flex bg-white/5 rounded-xl p-1 border border-white/10"><button disabled={!!selectedPerson.gender} onClick={() => setGender('Male')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Male' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}>Male</button><button disabled={!!selectedPerson.gender} onClick={() => setGender('Female')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Female' ? 'bg-pink-600 text-white' : 'text-slate-500'}`}>Female</button></div></div>
                     </div>
                     <div className="flex items-center gap-3 bg-black/30 p-4 rounded-2xl border border-dashed border-slate-700">
