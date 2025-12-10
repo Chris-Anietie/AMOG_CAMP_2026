@@ -33,6 +33,7 @@ const Shirt = ({ className }: { className?: string }) => <IconWrapper className=
 const Lock = ({ className }: { className?: string }) => <IconWrapper className={className}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></IconWrapper>;
 const Clock = ({ className }: { className?: string }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconWrapper>;
 const Trash2 = ({ className }: { className?: string }) => <IconWrapper className={className}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconWrapper>;
+const AlertTriangle = ({ className }: { className?: string }) => <IconWrapper className={className}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></IconWrapper>;
 
 // --- STYLES ---
 const globalStyles = `
@@ -57,15 +58,40 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
-// --- NEW COMPONENT: USER REPORT MODAL ---
+// --- DELETE CONFIRMATION MODAL ---
+function DeleteConfirmationModal({ person, onConfirm, onCancel }: { person: any, onConfirm: () => void, onCancel: () => void }) {
+    return (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
+            <div className="bg-[#1e293b] border border-red-500/30 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden text-center p-6 animate-in zoom-in-95">
+                <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                    <AlertTriangle className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Delete User?</h3>
+                <p className="text-slate-400 text-sm mb-6">
+                    Are you sure you want to remove <span className="text-white font-bold">{person.full_name}</span>? This action cannot be undone and will be logged.
+                </p>
+                <div className="flex gap-3">
+                    <button onClick={onCancel} className="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold transition-all">Cancel</button>
+                    <button onClick={onConfirm} className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold shadow-lg shadow-red-900/30 transition-all">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// --- USER REPORT MODAL ---
 function UserReportModal({ person, logs, onClose }: { person: any, logs: any[], onClose: () => void }) {
-    const userLogs = logs.filter(log => log.details.includes(person.full_name));
+    // Filter logs for this specific person
+    const userLogs = logs.filter(log => log.details.includes(person.full_name) || log.details.includes(person.phone_number));
 
     return (
         <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
             <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
                 <div className="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-6 border-b border-white/10 flex justify-between items-center shrink-0">
-                    <div><h2 className="text-xl font-bold text-white">{person.full_name}</h2><span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">Activity Log</span></div>
+                    <div>
+                        <h2 className="text-xl font-bold text-white">{person.full_name}</h2>
+                        <span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">Activity Log</span>
+                    </div>
                     <button onClick={onClose} className="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full text-white flex items-center justify-center">✕</button>
                 </div>
                 <div className="p-0 flex-1 overflow-y-auto custom-scrollbar">
@@ -128,7 +154,8 @@ export default function Home() {
   const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 });
 
   const [selectedPerson, setSelectedPerson] = useState<any>(null); // For Payment/Checkin Modal
-  const [reportPerson, setReportPerson] = useState<any>(null); // NEW: For Report Modal
+  const [reportPerson, setReportPerson] = useState<any>(null); // For Report Modal
+  const [deletePerson, setDeletePerson] = useState<any>(null); // For Delete Confirmation
   const [isRegistering, setIsRegistering] = useState(false); 
   const [showHistory, setShowHistory] = useState(false);
   const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); 
@@ -155,6 +182,7 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // --- FIXED AUDIT LOGIC (REGEX FIX) ---
   async function runDailyAudit() {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
@@ -249,23 +277,30 @@ export default function Home() {
   };
 
   const openReport = (person: any) => {
-      setReportPerson(person);
+      // Before opening report, refresh logs to ensure we see latest payment
+      fetchHistory().then(() => {
+          setReportPerson(person);
+      });
   };
 
-  // --- DELETE FUNCTIONALITY ---
-  async function handleDelete(person: any) {
-    if (!isOnline) return;
-    if (!confirm(`⚠️ ARE YOU SURE?\n\nDeleting ${person.full_name} is permanent.\nThis will be logged.`)) return;
+  const initiateDelete = (person: any) => {
+      setDeletePerson(person);
+  };
+
+  // --- CONFIRMED DELETE FUNCTION ---
+  async function confirmDelete() {
+    if (!isOnline || !deletePerson) return;
     
     // Log the deletion BEFORE deleting (audit trail)
-    await logAction('Delete User', `Deleted user: ${person.full_name} (${person.phone_number}).`);
+    await logAction('Delete User', `Deleted user: ${deletePerson.full_name} (${deletePerson.phone_number}).`);
     
-    const { error } = await supabase.from('participants').delete().eq('id', person.id);
+    const { error } = await supabase.from('participants').delete().eq('id', deletePerson.id);
     if (error) showToast("Error deleting: " + error.message, 'error');
     else {
         showToast("User deleted successfully.", 'success');
         fetchPeople();
     }
+    setDeletePerson(null); // Close modal
   }
 
   async function handleRecordPayment() {
@@ -284,9 +319,14 @@ export default function Home() {
 
     if (error) { showToast("Error: " + error.message, 'error'); } 
     else {
+        // IMPORTANT: Log must say "Recorded" or "Received" for audit regex to work
         await logAction('Payment Received', `Recorded ₵${amount} via ${paymentMethod}. New Total: ₵${totalPaid}.`);
-        await fetchPeople();
+        await fetchPeople(); // This updates the global 'people' list
         showToast(`Payment recorded! Balance updated.`, 'success');
+        
+        // Refresh logs in background so Report is ready
+        fetchHistory();
+        
         setSelectedPerson(null);
     }
     setProcessing(false);
@@ -302,6 +342,7 @@ export default function Home() {
     else {
         await logAction('Check-In', `Checked in ${selectedPerson.full_name}. House: ${randomSchool}`);
         await fetchPeople();
+        fetchHistory(); // Refresh logs
         const message = `Calvary greetings ${selectedPerson.full_name}! ✝️%0A%0AWelcome to AMOG 2026.%0A%0A*Registration Complete:*%0A🏠 *House:* ${randomSchool}%0A💰 *Total Paid:* ₵${selectedPerson.amount_paid}%0A%0AGod bless you!`;
         window.open(`https://wa.me/233${selectedPerson.phone_number?.substring(1)}?text=${message}`, '_blank');
         showToast(`Checked In Successfully!`, 'success');
@@ -352,7 +393,7 @@ export default function Home() {
   return (
     <div className="min-h-screen font-sans text-gray-100 bg-[#0f172a] relative pb-20 overflow-x-hidden">
       <style>{globalStyles}</style>
-      <div className="fixed inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-b from-slate-900/95 to-black/95 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-50 fixed" alt="bg" /></div>
+      <div className="fixed inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 to-black/95 z-[-1]"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-50 fixed z-[-2]" alt="bg" /></div>
       {!isOnline && ( <div className="fixed top-0 left-0 right-0 bg-red-600/90 text-white text-center py-2 text-xs font-bold z-[200] backdrop-blur flex items-center justify-center gap-2"><AlertCircle className="w-4 h-4"/> OFFLINE MODE</div> )}
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
@@ -385,7 +426,6 @@ export default function Home() {
            <button onClick={downloadCSV} className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 px-4 py-3 rounded-xl font-bold border border-emerald-500/20 flex items-center gap-2"><Download className="w-5 h-5"/></button>
         </div>
 
-        {/* FILTERS */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
             {['all', 'checked_in', 'owing', 'paid'].map(f => (
                 <button key={f} onClick={() => setFilter(f)} className={`px-5 py-2 rounded-full font-bold text-xs uppercase tracking-wider border transition-all ${filter === f ? 'bg-white text-slate-900 border-white shadow-md' : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-300'}`}>{f.replace('_', ' ')}</button>
@@ -413,7 +453,7 @@ export default function Home() {
                   
                   {/* TOP ICONS: DELETE & REPORT */}
                   <div className="absolute top-4 right-4 flex gap-2">
-                    <button className="hover:scale-110 transition-transform opacity-50 hover:opacity-100 hover:text-red-500" onClick={(e) => { e.stopPropagation(); handleDelete(p); }}>
+                    <button className="hover:scale-110 transition-transform opacity-50 hover:opacity-100 hover:text-red-500" onClick={(e) => { e.stopPropagation(); initiateDelete(p); }}>
                         <Trash2 className="w-4 h-4"/>
                     </button>
                     <button className="hover:scale-110 transition-transform" onClick={(e) => { e.stopPropagation(); openReport(p); }}>
@@ -459,6 +499,11 @@ export default function Home() {
       {/* NEW USER REPORT MODAL */}
       {reportPerson && (
         <UserReportModal person={reportPerson} logs={historyLogs} onClose={() => setReportPerson(null)} />
+      )}
+      
+      {/* DELETE CONFIRMATION MODAL */}
+      {deletePerson && (
+        <DeleteConfirmationModal person={deletePerson} onConfirm={confirmDelete} onCancel={() => setDeletePerson(null)} />
       )}
 
       {selectedPerson && (
