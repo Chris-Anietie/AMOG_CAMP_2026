@@ -10,12 +10,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // CONSTANTS
 const GRACE_SCHOOLS = ['Red House', 'Blue House', 'Green House', 'Yellow House'];
 const CHURCH_BRANCHES = [
-  'Nsawam Branch',
-  'Accra Branch, Main',
-  'Kutunse Branch',
-  'Kumasi Branch',
-  'Kintampo Branch',
-  'Reigners World Inc'
+  'GWC_NSAWAM',
+  'GWC_LEADERSHIP CITADEL',
+  'GWC_KUTUNSE',
+  'GWC_KUMASI',
+  'GWC_KINTAMPO',
+  'RWI'
 ];
 const REG_FEE = 400;
 const LEADERSHIP_FEE = 1000;
@@ -43,6 +43,7 @@ const Clock = ({ className }: { className?: string }) => <IconWrapper className=
 const Trash2 = ({ className }: { className?: string }) => <IconWrapper className={className}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconWrapper>;
 const AlertTriangle = ({ className }: { className?: string }) => <IconWrapper className={className}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></IconWrapper>;
 const MapPin = ({ className }: { className?: string }) => <IconWrapper className={className}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></IconWrapper>;
+const Filter = ({ className }: { className?: string }) => <IconWrapper className={className}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></IconWrapper>;
 
 // --- STYLES ---
 const globalStyles = `
@@ -88,7 +89,7 @@ function DeleteConfirmationModal({ person, onConfirm, onCancel }: { person: any,
     );
 }
 
-// --- USER PROFILE REPORT MODAL (UPDATED) ---
+// --- USER PROFILE REPORT MODAL ---
 function UserReportModal({ person, logs, onClose }: { person: any, logs: any[], onClose: () => void }) {
     // Filter logs for this specific person
     const userLogs = logs.filter(log => log.details.includes(person.full_name) || log.details.includes(person.phone_number));
@@ -98,7 +99,7 @@ function UserReportModal({ person, logs, onClose }: { person: any, logs: any[], 
 
     return (
         <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
                 <div className="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-6 border-b border-white/10 flex justify-between items-center shrink-0">
                     <div>
                         <h2 className="text-xl font-bold text-white">Profile Details</h2>
@@ -190,6 +191,7 @@ export default function Home() {
   const [people, setPeople] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all'); 
+  const [branchFilter, setBranchFilter] = useState(''); // NEW BRANCH FILTER
   const [isOnline, setIsOnline] = useState(true); 
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
   
@@ -290,7 +292,7 @@ export default function Home() {
   async function logAction(action: string, details: string) {
     if (!isOnline) return; 
     await supabase.from('audit_logs').insert([{ staff_email: session?.user?.email, action_type: action, details: details }]);
-    // We do NOT fetchHistory here to avoid race conditions, we do it after the main action
+    fetchHistory(); 
   }
 
   const downloadCSV = () => {
@@ -363,11 +365,10 @@ export default function Home() {
 
     if (error) { showToast("Error: " + error.message, 'error'); } 
     else {
-        // IMPORTANT: Log name in the payment record so Report can find it
         await logAction('Payment Received', `Payment for ${selectedPerson.full_name}: Recorded ₵${amount} via ${paymentMethod}. New Total: ₵${totalPaid}.`);
         await fetchPeople();
         showToast(`Payment recorded! Balance updated.`, 'success');
-        fetchHistory(); // Immediate log refresh
+        fetchHistory();
         setSelectedPerson(null);
     }
     setProcessing(false);
@@ -422,7 +423,6 @@ export default function Home() {
     else {
       await logAction('New Registration', `Registered: ${newReg.full_name}`);
       showToast("Registered!", 'success');
-      // Refresh to ensure new logs appear in report immediately
       fetchHistory();
       setIsRegistering(false); 
       setNewReg({ full_name: '', phone_number: '', role: 'Member', branch: '', t_shirt: 'L', t_shirt_color: 'White', invited_by: '', contact_type: 'WhatsApp', location: '' }); 
@@ -438,10 +438,18 @@ export default function Home() {
     if (error) showToast("Invalid Credentials", 'error');
   };
 
+  // --- FILTER LOGIC WITH BRANCH FILTER ---
   const filteredPeople = people.filter((p) => {
-    const term = search.toLowerCase(); return (p.full_name || '').toLowerCase().includes(term) || (p.phone_number || '').includes(term);
-  }).filter((p) => {
-      if (filter === 'paid') return p.payment_status === 'Paid'; if (filter === 'owing') return p.payment_status === 'Partial' || p.payment_status === 'Pending'; if (filter === 'checked_in') return p.checked_in === true; return true;
+    const term = search.toLowerCase(); 
+    const matchesSearch = (p.full_name || '').toLowerCase().includes(term) || (p.phone_number || '').includes(term);
+    const matchesBranch = branchFilter === '' || p.branch === branchFilter;
+    
+    let matchesStatus = true;
+    if (filter === 'paid') matchesStatus = p.payment_status === 'Paid';
+    if (filter === 'owing') matchesStatus = p.payment_status === 'Partial' || p.payment_status === 'Pending';
+    if (filter === 'checked_in') matchesStatus = p.checked_in === true;
+
+    return matchesSearch && matchesBranch && matchesStatus;
   }).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
 
   const stats = { 
@@ -459,7 +467,7 @@ export default function Home() {
   return (
     <div className="min-h-screen font-sans text-gray-100 bg-[#0f172a] relative pb-20 overflow-x-hidden">
       <style>{globalStyles}</style>
-      <div className="fixed inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-black/80 z-[-1]"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-70 fixed z-[-2]" alt="bg" /></div>
+      <div className="fixed inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 to-black/95 z-[-1]"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-70 fixed z-[-2]" alt="bg" /></div>
       {!isOnline && ( <div className="fixed top-0 left-0 right-0 bg-red-600/90 text-white text-center py-2 text-xs font-bold z-[200] backdrop-blur flex items-center justify-center gap-2"><AlertCircle className="w-4 h-4"/> OFFLINE MODE</div> )}
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
@@ -475,7 +483,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* CLICKABLE RECEIVED TODAY */}
         <div className="flex justify-end mb-4">
              <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md px-6 py-2 rounded-full border border-purple-500/30 text-center cursor-pointer hover:bg-purple-900/60 transition-all flex items-center gap-3">
                 <span className="text-xs uppercase text-purple-300 font-bold tracking-wider">Received Today</span>
@@ -493,16 +500,25 @@ export default function Home() {
         </div>
 
         {/* CONTROLS */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-2 rounded-2xl mb-8 flex gap-2">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-2 rounded-2xl mb-8 flex gap-2 items-center">
            <div className="flex-1 relative"><Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500"/><input type="text" placeholder="Search people..." className="w-full pl-11 pr-4 py-3 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 outline-none transition-all placeholder-slate-600" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
            <button onClick={() => setIsRegistering(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-indigo-900/20 flex items-center gap-2"><Plus className="w-5 h-5"/> <span className="hidden md:inline">New Registration</span></button>
            <button onClick={() => setShowHistory(true)} className="bg-slate-800/50 hover:bg-slate-800 text-slate-300 px-4 py-3 rounded-xl font-bold border border-white/5 flex items-center gap-2"><FileText className="w-5 h-5"/> <span className="hidden md:inline">Logs</span></button>
            <button onClick={downloadCSV} className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 px-4 py-3 rounded-xl font-bold border border-emerald-500/20 flex items-center gap-2"><Download className="w-5 h-5"/></button>
         </div>
-
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
+        
+        {/* BRANCH FILTER DROPDOWN */}
+        <div className="mb-6 flex gap-3 overflow-x-auto pb-2 no-scrollbar items-center">
+            <div className="relative min-w-[200px]">
+                <Filter className="absolute left-3 top-3 w-4 h-4 text-indigo-400" />
+                <select className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-sm focus:border-indigo-500 outline-none appearance-none" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
+                    <option value="">All Branches</option>
+                    {CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}
+                </select>
+            </div>
+            <div className="h-8 w-px bg-white/10 mx-2"></div>
             {['all', 'checked_in', 'owing', 'paid'].map(f => (
-                <button key={f} onClick={() => setFilter(f)} className={`px-5 py-2 rounded-full font-bold text-xs uppercase tracking-wider border transition-all ${filter === f ? 'bg-white text-slate-900 border-white shadow-md' : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-300'}`}>{f.replace('_', ' ')}</button>
+                <button key={f} onClick={() => setFilter(f)} className={`px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider border transition-all ${filter === f ? 'bg-white text-slate-900 border-white shadow-md' : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-300'}`}>{f.replace('_', ' ')}</button>
             ))}
         </div>
 
