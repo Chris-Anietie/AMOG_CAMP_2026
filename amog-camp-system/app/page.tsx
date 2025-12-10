@@ -473,7 +473,7 @@ export default function Home() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 py-8">
         {/* HEADER & STATS */}
         <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-6">
-          <div className="text-center lg:text-left"><h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">AMOG <span className="text-indigo-500">2026</span></h1><p className="text-slate-400 font-medium text-sm tracking-wide mt-1">Registration & Check-In Desk</p></div>
+          <div className="text-center lg:text-left"><h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">AMOG <span className="text-indigo-500">2026</span></h1><p className="text-slate-400 font-medium text-sm tracking-wide mt-1">Registration & Help Desk</p></div>
           <div className="flex gap-3">
             <div className="bg-white/5 backdrop-blur-md px-5 py-3 rounded-xl border border-white/10 flex items-center gap-3"><Users className="w-5 h-5 text-indigo-400"/><div className="text-left"><p className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">In Camp</p><p className="text-xl font-bold text-white leading-none">{stats.checkedIn}</p></div></div>
             <div className="bg-emerald-900/30 backdrop-blur-md px-5 py-3 rounded-xl border border-emerald-500/20 flex items-center gap-3"><Coins className="w-5 h-5 text-emerald-400"/><div className="text-left"><p className="text-[10px] uppercase text-emerald-400 font-bold tracking-wider">Cash</p><p className="text-xl font-bold text-emerald-100 font-mono leading-none">₵{stats.totalCash}</p></div></div>
