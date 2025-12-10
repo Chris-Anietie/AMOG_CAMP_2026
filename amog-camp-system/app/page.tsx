@@ -9,6 +9,14 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // CONSTANTS
 const GRACE_SCHOOLS = ['Red House', 'Blue House', 'Green House', 'Yellow House'];
+const CHURCH_BRANCHES = [
+  'Nsawam Branch',
+  'Accra Branch, Main',
+  'Kutunse Branch',
+  'Kumasi Branch',
+  'Kintampo Branch',
+  'Reigners World Inc'
+];
 const REG_FEE = 400;
 const LEADERSHIP_FEE = 1000;
 
@@ -167,7 +175,7 @@ export default function Home() {
   const [processing, setProcessing] = useState(false);
   const [gender, setGender] = useState('Male');
   
-  const [newReg, setNewReg] = useState({ full_name: '', phone_number: '', role: 'Member', branch: 'Main', t_shirt: 'L', invited_by: '' });
+  const [newReg, setNewReg] = useState({ full_name: '', phone_number: '', role: 'Member', branch: '', t_shirt: 'L', invited_by: '' });
   const [toast, setToast] = useState<{msg: string, type: 'success' | 'error' | 'warning'} | null>(null);
 
   useEffect(() => {
@@ -182,7 +190,6 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- FIXED AUDIT LOGIC (REGEX FIX) ---
   async function runDailyAudit() {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
@@ -277,7 +284,6 @@ export default function Home() {
   };
 
   const openReport = (person: any) => {
-      // Before opening report, refresh logs to ensure we see latest payment
       fetchHistory().then(() => {
           setReportPerson(person);
       });
@@ -290,17 +296,14 @@ export default function Home() {
   // --- CONFIRMED DELETE FUNCTION ---
   async function confirmDelete() {
     if (!isOnline || !deletePerson) return;
-    
-    // Log the deletion BEFORE deleting (audit trail)
     await logAction('Delete User', `Deleted user: ${deletePerson.full_name} (${deletePerson.phone_number}).`);
-    
     const { error } = await supabase.from('participants').delete().eq('id', deletePerson.id);
     if (error) showToast("Error deleting: " + error.message, 'error');
     else {
         showToast("User deleted successfully.", 'success');
         fetchPeople();
     }
-    setDeletePerson(null); // Close modal
+    setDeletePerson(null);
   }
 
   async function handleRecordPayment() {
@@ -323,10 +326,7 @@ export default function Home() {
         await logAction('Payment Received', `Payment for ${selectedPerson.full_name}: Recorded ₵${amount} via ${paymentMethod}. New Total: ₵${totalPaid}.`);
         await fetchPeople();
         showToast(`Payment recorded! Balance updated.`, 'success');
-        
-        // Refresh logs in background so Report is ready
         fetchHistory();
-        
         setSelectedPerson(null);
     }
     setProcessing(false);
@@ -342,7 +342,7 @@ export default function Home() {
     else {
         await logAction('Check-In', `Checked in ${selectedPerson.full_name}. House: ${randomSchool}`);
         await fetchPeople();
-        fetchHistory(); // Refresh logs
+        fetchHistory(); 
         const message = `Calvary greetings ${selectedPerson.full_name}! ✝️%0A%0AWelcome to AMOG 2026.%0A%0A*Registration Complete:*%0A🏠 *House:* ${randomSchool}%0A💰 *Total Paid:* ₵${selectedPerson.amount_paid}%0A%0AGod bless you!`;
         window.open(`https://wa.me/233${selectedPerson.phone_number?.substring(1)}?text=${message}`, '_blank');
         showToast(`Checked In Successfully!`, 'success');
@@ -354,6 +354,7 @@ export default function Home() {
   async function handleNewRegistration() {
     if (!isOnline) { showToast("Offline.", "error"); return; }
     if (newReg.phone_number.length < 10) { showToast("Invalid Phone", "error"); return; }
+    if (!newReg.branch) { showToast("Please select a branch.", "warning"); return; }
     setProcessing(true);
     const existing = people.find(p => p.phone_number === newReg.phone_number);
     if (existing) { showToast(`${existing.full_name} exists!`, 'error'); setProcessing(false); return; }
@@ -364,7 +365,7 @@ export default function Home() {
       await logAction('New Registration', `Registered: ${newReg.full_name}`);
       showToast("Registered!", 'success');
       setIsRegistering(false); 
-      setNewReg({ full_name: '', phone_number: '', role: 'Member', branch: 'Main', t_shirt: 'L', invited_by: '' }); 
+      setNewReg({ full_name: '', phone_number: '', role: 'Member', branch: '', t_shirt: 'L', invited_by: '' }); 
     }
     setProcessing(false);
   }
@@ -386,10 +387,6 @@ export default function Home() {
     checkedIn: people.filter(p => p.checked_in).length, 
     totalCash: people.reduce((sum, p) => sum + (p.cash_amount || 0), 0),
     totalMomo: people.reduce((sum, p) => sum + (p.momo_amount || 0), 0),
-    red: people.filter(p => p.grace_school === 'Red House').length,
-    blue: people.filter(p => p.grace_school === 'Blue House').length,
-    green: people.filter(p => p.grace_school === 'Green House').length,
-    yellow: people.filter(p => p.grace_school === 'Yellow House').length,
   };
 
   if (!session) { return ( <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative font-sans overflow-hidden"><style>{globalStyles}</style><div className="absolute inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-br from-indigo-950/90 via-purple-900/80 to-black/90 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover scale-105" alt="Background" /></div><div className="relative z-20 w-full max-w-md p-6"><div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl"><div className="text-center mb-8"><h1 className="text-4xl font-extrabold text-white tracking-tight">AMOG <span className="text-indigo-400">2026</span></h1><p className="text-indigo-200 mt-2 font-medium tracking-wider uppercase text-[11px]">Staff Access Portal</p></div><form onSubmit={handleLogin} method="POST" className="space-y-5"><div><label className="text-[11px] font-bold text-indigo-300 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label><div className="relative"><User className="absolute left-4 top-3.5 w-5 h-5 text-indigo-400/60"/><input name="email" type="email" className="w-full pl-12 p-3.5 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-900/50 outline-none transition-all" placeholder="Enter email" required /></div></div><div><label className="text-[11px] font-bold text-indigo-300 uppercase ml-1 mb-2 block tracking-wider">Password</label><div className="relative"><Lock className="absolute left-4 top-3.5 w-5 h-5 text-indigo-400/60"/><input name="password" type="password" className="w-full pl-12 p-3.5 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-900/50 outline-none transition-all" placeholder="••••••••" required /></div></div><button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-900/30 transition-all">Secure Login</button></form></div></div>{toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}</div> ); }
@@ -402,7 +399,6 @@ export default function Home() {
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 py-8">
-        {/* HEADER & STATS */}
         <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-6">
           <div className="text-center lg:text-left"><h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">AMOG <span className="text-indigo-500">2026</span></h1><p className="text-slate-400 font-medium text-sm tracking-wide mt-1">Registration & Check-In Desk</p></div>
           <div className="flex gap-3">
@@ -413,7 +409,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* CLICKABLE RECEIVED TODAY */}
         <div className="flex justify-end mb-4">
              <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md px-6 py-2 rounded-full border border-purple-500/30 text-center cursor-pointer hover:bg-purple-900/60 transition-all flex items-center gap-3">
                 <span className="text-xs uppercase text-purple-300 font-bold tracking-wider">Received Today</span>
@@ -422,7 +417,6 @@ export default function Home() {
              </div>
         </div>
 
-        {/* CONTROLS */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-2 rounded-2xl mb-8 flex gap-2">
            <div className="flex-1 relative"><Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500"/><input type="text" placeholder="Search people..." className="w-full pl-11 pr-4 py-3 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 outline-none transition-all placeholder-slate-600" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
            <button onClick={() => setIsRegistering(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-indigo-900/20 flex items-center gap-2"><Plus className="w-5 h-5"/> <span className="hidden md:inline">New Registration</span></button>
@@ -436,7 +430,6 @@ export default function Home() {
             ))}
         </div>
 
-        {/* USER CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-20">
           {filteredPeople.map((p) => {
             const totalPaid = (p.cash_amount || 0) + (p.momo_amount || 0);
@@ -455,7 +448,6 @@ export default function Home() {
             return (
                 <div key={p.id} className={`group relative bg-white/5 backdrop-blur-sm rounded-2xl p-5 border ${cardBorder} transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 hover:shadow-2xl flex flex-col`}>
                   
-                  {/* TOP ICONS: DELETE & REPORT */}
                   <div className="absolute top-4 right-4 flex gap-2">
                     <button className="hover:scale-110 transition-transform opacity-50 hover:opacity-100 hover:text-red-500" onClick={(e) => { e.stopPropagation(); initiateDelete(p); }}>
                         <Trash2 className="w-4 h-4"/>
@@ -564,7 +556,7 @@ export default function Home() {
             <div className="bg-white/5 p-5 border-b border-white/10 flex justify-between items-center shrink-0"><h2 className="text-lg font-bold text-white flex items-center gap-2"><Plus className="w-5 h-5 text-indigo-400"/>New Registration</h2><button onClick={() => setIsRegistering(false)} className="bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all w-8 h-8 flex items-center justify-center rounded-full">✕</button></div>
             <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar">
               <div className="space-y-3"><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Full Name</label><div className="relative"><User className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><input type="text" className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500/50 outline-none placeholder-slate-600" placeholder="Surname Firstname" value={newReg.full_name} onChange={e => setNewReg({...newReg, full_name: e.target.value})} /></div></div><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Phone</label><div className="relative"><Phone className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><input type="tel" className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500/50 outline-none placeholder-slate-600" placeholder="055..." value={newReg.phone_number} onChange={e => setNewReg({...newReg, phone_number: e.target.value})} /></div></div></div>
-              <div className="grid grid-cols-2 gap-3"><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Role</label><div className="relative"><Users className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><select className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none" value={newReg.role} onChange={e => setNewReg({...newReg, role: e.target.value})}><option className="bg-slate-900">Member</option><option className="bg-slate-900">Leader</option><option className="bg-slate-900">Pastor</option><option className="bg-slate-900">Guest</option></select></div></div><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Branch</label><div className="relative"><HomeIcon className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><input type="text" className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500/50 outline-none placeholder-slate-600" placeholder="Main" value={newReg.branch} onChange={e => setNewReg({...newReg, branch: e.target.value})} /></div></div></div>
+              <div className="grid grid-cols-2 gap-3"><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Role</label><div className="relative"><Users className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><select className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none" value={newReg.role} onChange={e => setNewReg({...newReg, role: e.target.value})}><option className="bg-slate-900">Member</option><option className="bg-slate-900">Leader</option><option className="bg-slate-900">Pastor</option><option className="bg-slate-900">Guest</option></select></div></div><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Branch</label><div className="relative"><HomeIcon className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><select className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none" value={newReg.branch} onChange={e => setNewReg({...newReg, branch: e.target.value})}><option value="" disabled className="bg-slate-900">Select Branch</option>{CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}</select></div></div></div>
               <div className="grid grid-cols-2 gap-3"><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">T-Shirt</label><div className="relative"><Shirt className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><select className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none" value={newReg.t_shirt} onChange={e => setNewReg({...newReg, t_shirt: e.target.value})}><option className="bg-slate-900" value="S">S</option><option className="bg-slate-900" value="M">M</option><option className="bg-slate-900" value="L">L</option><option className="bg-slate-900" value="XL">XL</option><option className="bg-slate-900" value="XXL">XXL</option></select></div></div><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Invited By</label><div className="relative"><User className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><input type="text" className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500/50 outline-none placeholder-slate-600" placeholder="Optional" value={newReg.invited_by} onChange={e => setNewReg({...newReg, invited_by: e.target.value})} /></div></div></div>
               <button onClick={handleNewRegistration} disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-bold text-lg mt-2 shadow-xl shadow-indigo-900/30 transition-all active:scale-95 flex items-center justify-center gap-2">{processing ? 'Saving...' : <><CheckCircle className="w-5 h-5"/> Complete Registration</>}</button>
             </div>
