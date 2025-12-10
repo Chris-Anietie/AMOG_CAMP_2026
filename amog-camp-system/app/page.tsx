@@ -90,7 +90,9 @@ function DeleteConfirmationModal({ person, onConfirm, onCancel }: { person: any,
 
 // --- USER REPORT MODAL ---
 function UserReportModal({ person, logs, onClose }: { person: any, logs: any[], onClose: () => void }) {
+    // Filter logs for this specific person (by Name OR Phone)
     const userLogs = logs.filter(log => log.details.includes(person.full_name) || log.details.includes(person.phone_number));
+
     return (
         <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
             <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
@@ -160,9 +162,9 @@ export default function Home() {
   const [todaysTotal, setTodaysTotal] = useState(0);
   const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 });
 
-  const [selectedPerson, setSelectedPerson] = useState<any>(null);
-  const [reportPerson, setReportPerson] = useState<any>(null); 
-  const [deletePerson, setDeletePerson] = useState<any>(null); 
+  const [selectedPerson, setSelectedPerson] = useState<any>(null); // For Payment/Checkin Modal
+  const [reportPerson, setReportPerson] = useState<any>(null); // For Report Modal
+  const [deletePerson, setDeletePerson] = useState<any>(null); // For Delete Confirmation
   const [isRegistering, setIsRegistering] = useState(false); 
   const [showHistory, setShowHistory] = useState(false);
   const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); 
@@ -174,13 +176,12 @@ export default function Home() {
   const [processing, setProcessing] = useState(false);
   const [gender, setGender] = useState('Male');
   
-  // T-SHIRT & NEW FIELDS
-  const [wantsTShirt, setWantsTShirt] = useState('no');
   const [newReg, setNewReg] = useState({ 
       full_name: '', phone_number: '', role: 'Member', branch: '', 
       t_shirt: 'L', t_shirt_color: 'White', invited_by: '', 
       contact_type: 'WhatsApp', location: '' 
   });
+  const [wantsTShirt, setWantsTShirt] = useState('no');
   const [toast, setToast] = useState<{msg: string, type: 'success' | 'error' | 'warning'} | null>(null);
 
   useEffect(() => {
@@ -289,6 +290,7 @@ export default function Home() {
   };
 
   const openReport = (person: any) => {
+      // Refresh logs first
       fetchHistory().then(() => {
           setReportPerson(person);
       });
@@ -326,6 +328,7 @@ export default function Home() {
 
     if (error) { showToast("Error: " + error.message, 'error'); } 
     else {
+        // Updated Log Format: Includes Name for Report Filtering
         await logAction('Payment Received', `Payment for ${selectedPerson.full_name}: Recorded ₵${amount} via ${paymentMethod}. New Total: ₵${totalPaid}.`);
         await fetchPeople();
         showToast(`Payment recorded! Balance updated.`, 'success');
@@ -371,11 +374,7 @@ export default function Home() {
 
     const { data, error } = await supabase.from('participants').insert([{ 
         ...newReg, 
-        t_shirt: finalTShirt, // Saves "Size (Color)"
-        // Note: location and contact_type are sent here. 
-        // If DB doesn't have columns, it might warn, but basic insert usually fine if extra fields ignored or if you added columns.
-        // Assuming you want to save them in metadata or similar if columns don't exist.
-        // For now, standard fields:
+        t_shirt: finalTShirt, 
         payment_status: 'Pending', 
         amount_paid: 0, 
         cash_amount: 0, 
@@ -419,7 +418,7 @@ export default function Home() {
   return (
     <div className="min-h-screen font-sans text-gray-100 bg-[#0f172a] relative pb-20 overflow-x-hidden">
       <style>{globalStyles}</style>
-      <div className="fixed inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 to-black/95 z-[-1]"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-50 fixed z-[-2]" alt="bg" /></div>
+      <div className="fixed inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-black/80 z-[-1]"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-70 fixed z-[-2]" alt="bg" /></div>
       {!isOnline && ( <div className="fixed top-0 left-0 right-0 bg-red-600/90 text-white text-center py-2 text-xs font-bold z-[200] backdrop-blur flex items-center justify-center gap-2"><AlertCircle className="w-4 h-4"/> OFFLINE MODE</div> )}
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
