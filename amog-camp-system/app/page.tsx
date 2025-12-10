@@ -20,7 +20,7 @@ const CHURCH_BRANCHES = [
 const REG_FEE = 400;
 const LEADERSHIP_FEE = 1000;
 
-// --- EMBEDDED ICONS ---
+// --- EMBEDDED ICONS (No Install Required) ---
 const IconWrapper = ({ children, className }: { children: React.ReactNode, className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
 );
@@ -89,7 +89,7 @@ function DeleteConfirmationModal({ person, onConfirm, onCancel }: { person: any,
     );
 }
 
-// --- USER PROFILE REPORT MODAL ---
+// --- USER REPORT MODAL ---
 function UserReportModal({ person, logs, onClose }: { person: any, logs: any[], onClose: () => void }) {
     // Filter logs for this specific person
     const userLogs = logs.filter(log => log.details.includes(person.full_name) || log.details.includes(person.phone_number));
@@ -191,7 +191,7 @@ export default function Home() {
   const [people, setPeople] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all'); 
-  const [branchFilter, setBranchFilter] = useState(''); // NEW BRANCH FILTER
+  const [branchFilter, setBranchFilter] = useState(''); 
   const [isOnline, setIsOnline] = useState(true); 
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
   
@@ -232,7 +232,6 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- FIXED AUDIT LOGIC (REGEX FIX) ---
   async function runDailyAudit() {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
@@ -344,7 +343,7 @@ export default function Home() {
     else {
         showToast("User deleted successfully.", 'success');
         fetchPeople();
-        fetchHistory(); // Refresh logs
+        fetchHistory(); 
     }
     setDeletePerson(null);
   }
@@ -365,6 +364,7 @@ export default function Home() {
 
     if (error) { showToast("Error: " + error.message, 'error'); } 
     else {
+        // IMPORTANT: Log name in the payment record so Report can find it
         await logAction('Payment Received', `Payment for ${selectedPerson.full_name}: Recorded ₵${amount} via ${paymentMethod}. New Total: ₵${totalPaid}.`);
         await fetchPeople();
         showToast(`Payment recorded! Balance updated.`, 'success');
@@ -438,11 +438,10 @@ export default function Home() {
     if (error) showToast("Invalid Credentials", 'error');
   };
 
-  // --- FILTER LOGIC WITH BRANCH FILTER ---
   const filteredPeople = people.filter((p) => {
     const term = search.toLowerCase(); 
     const matchesSearch = (p.full_name || '').toLowerCase().includes(term) || (p.phone_number || '').includes(term);
-    const matchesBranch = branchFilter === '' || p.branch === branchFilter;
+    const matchesBranch = branchFilter === '' || (p.branch || '').toLowerCase() === branchFilter.toLowerCase();
     
     let matchesStatus = true;
     if (filter === 'paid') matchesStatus = p.payment_status === 'Paid';
@@ -467,7 +466,7 @@ export default function Home() {
   return (
     <div className="min-h-screen font-sans text-gray-100 bg-[#0f172a] relative pb-20 overflow-x-hidden">
       <style>{globalStyles}</style>
-      <div className="fixed inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 to-black/95 z-[-1]"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-70 fixed z-[-2]" alt="bg" /></div>
+      <div className="fixed inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-black/80 z-[-1]"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-70 fixed z-[-2]" alt="bg" /></div>
       {!isOnline && ( <div className="fixed top-0 left-0 right-0 bg-red-600/90 text-white text-center py-2 text-xs font-bold z-[200] backdrop-blur flex items-center justify-center gap-2"><AlertCircle className="w-4 h-4"/> OFFLINE MODE</div> )}
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
@@ -483,6 +482,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* CLICKABLE RECEIVED TODAY */}
         <div className="flex justify-end mb-4">
              <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md px-6 py-2 rounded-full border border-purple-500/30 text-center cursor-pointer hover:bg-purple-900/60 transition-all flex items-center gap-3">
                 <span className="text-xs uppercase text-purple-300 font-bold tracking-wider">Received Today</span>
@@ -510,7 +510,7 @@ export default function Home() {
         {/* BRANCH FILTER DROPDOWN */}
         <div className="mb-6 flex gap-3 overflow-x-auto pb-2 no-scrollbar items-center">
             <div className="relative min-w-[200px]">
-                <Filter className="absolute left-3 top-3 w-4 h-4 text-indigo-400" />
+                <div className="absolute left-3 top-3 w-4 h-4 text-indigo-400"><HomeIcon className="w-4 h-4"/></div>
                 <select className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-sm focus:border-indigo-500 outline-none appearance-none" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
                     <option value="">All Branches</option>
                     {CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}
