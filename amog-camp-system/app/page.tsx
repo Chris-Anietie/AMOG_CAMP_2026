@@ -88,38 +88,72 @@ function DeleteConfirmationModal({ person, onConfirm, onCancel }: { person: any,
     );
 }
 
-// --- USER REPORT MODAL ---
+// --- USER PROFILE REPORT MODAL (UPDATED) ---
 function UserReportModal({ person, logs, onClose }: { person: any, logs: any[], onClose: () => void }) {
-    // Filter logs for this specific person (by Name OR Phone)
+    // Filter logs for this specific person
     const userLogs = logs.filter(log => log.details.includes(person.full_name) || log.details.includes(person.phone_number));
+    const isLeader = person.role?.toLowerCase().includes('leader') || person.role?.toLowerCase().includes('pastor');
+    const targetFee = isLeader ? LEADERSHIP_FEE : REG_FEE;
+    const balance = targetFee - (person.amount_paid || 0);
 
     return (
         <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-6 border-b border-white/10 flex justify-between items-center shrink-0">
                     <div>
-                        <h2 className="text-xl font-bold text-white">{person.full_name}</h2>
-                        <span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">Activity Log</span>
+                        <h2 className="text-xl font-bold text-white">Profile Details</h2>
+                        <span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">{person.full_name}</span>
                     </div>
                     <button onClick={onClose} className="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full text-white flex items-center justify-center">✕</button>
                 </div>
-                <div className="p-0 flex-1 overflow-y-auto custom-scrollbar">
-                    {userLogs.length === 0 ? (
-                        <div className="p-10 text-center text-slate-500"><Clock className="w-12 h-12 mx-auto mb-3 opacity-20"/><p>No activity recorded yet.</p></div>
-                    ) : (
-                        <div className="divide-y divide-white/5">
-                            {userLogs.map((log, i) => (
-                                <div key={i} className="p-4 hover:bg-white/5 transition-colors">
-                                    <div className="flex justify-between items-start mb-1">
-                                        <span className="text-[10px] font-bold uppercase text-slate-400 bg-white/5 px-2 py-0.5 rounded">{log.action_type}</span>
-                                        <span className="text-[10px] font-mono text-slate-500">{new Date(log.created_at).toLocaleString()}</span>
+                
+                <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                    {/* KEY STATS CARD */}
+                    <div className="bg-white/5 rounded-2xl p-4 border border-white/10 grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-[10px] uppercase text-slate-400 font-bold mb-1">Grace School</p>
+                            <p className="text-white font-bold text-lg">{person.grace_school || 'Not Assigned'}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] uppercase text-slate-400 font-bold mb-1">Payment Status</p>
+                            <p className={`font-bold text-lg ${balance <= 0 ? 'text-emerald-400' : 'text-amber-500'}`}>
+                                {balance <= 0 ? 'PAID' : `OWING ₵${balance}`}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] uppercase text-slate-400 font-bold mb-1">Total Paid</p>
+                            <p className="text-white font-mono text-lg">₵{person.amount_paid || 0}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] uppercase text-slate-400 font-bold mb-1">T-Shirt</p>
+                            <p className="text-white text-sm">{person.t_shirt || 'None'}</p>
+                        </div>
+                    </div>
+
+                    {/* DETAILED INFO LIST */}
+                    <div className="space-y-3 text-sm">
+                        <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Branch</span><span className="text-white">{person.branch}</span></div>
+                        <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Location</span><span className="text-white">{person.location || '-'}</span></div>
+                        <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Phone</span><span className="text-white">{person.phone_number}</span></div>
+                        <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Contact Method</span><span className="text-white">{person.contact_type || '-'}</span></div>
+                        <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Invited By</span><span className="text-white">{person.invited_by || '-'}</span></div>
+                    </div>
+
+                    {/* AUDIT LOG SECTION */}
+                    <div>
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Clock className="w-3 h-3"/> System Logs</h4>
+                        <div className="space-y-2">
+                            {userLogs.length === 0 ? <p className="text-slate-500 text-xs italic">No system logs found.</p> : userLogs.map((log, i) => (
+                                <div key={i} className="text-xs p-3 bg-black/20 rounded-lg border border-white/5">
+                                    <div className="flex justify-between mb-1 text-slate-400">
+                                        <span>{new Date(log.created_at).toLocaleDateString()}</span>
+                                        <span className="text-[9px] uppercase border border-white/10 px-1 rounded">{log.action_type}</span>
                                     </div>
-                                    <p className="text-sm text-slate-200 leading-snug">{log.details}</p>
-                                    <p className="text-[10px] text-indigo-400 mt-2 flex items-center gap-1"><User className="w-3 h-3"/> {log.staff_email}</p>
+                                    <p className="text-slate-300">{log.details}</p>
                                 </div>
                             ))}
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>
@@ -196,6 +230,7 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // --- FIXED AUDIT LOGIC (REGEX FIX) ---
   async function runDailyAudit() {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
@@ -255,7 +290,7 @@ export default function Home() {
   async function logAction(action: string, details: string) {
     if (!isOnline) return; 
     await supabase.from('audit_logs').insert([{ staff_email: session?.user?.email, action_type: action, details: details }]);
-    fetchHistory(); 
+    // We do NOT fetchHistory here to avoid race conditions, we do it after the main action
   }
 
   const downloadCSV = () => {
@@ -290,7 +325,6 @@ export default function Home() {
   };
 
   const openReport = (person: any) => {
-      // Refresh logs first
       fetchHistory().then(() => {
           setReportPerson(person);
       });
@@ -308,6 +342,7 @@ export default function Home() {
     else {
         showToast("User deleted successfully.", 'success');
         fetchPeople();
+        fetchHistory(); // Refresh logs
     }
     setDeletePerson(null);
   }
@@ -328,11 +363,11 @@ export default function Home() {
 
     if (error) { showToast("Error: " + error.message, 'error'); } 
     else {
-        // Updated Log Format: Includes Name for Report Filtering
+        // IMPORTANT: Log name in the payment record so Report can find it
         await logAction('Payment Received', `Payment for ${selectedPerson.full_name}: Recorded ₵${amount} via ${paymentMethod}. New Total: ₵${totalPaid}.`);
         await fetchPeople();
         showToast(`Payment recorded! Balance updated.`, 'success');
-        fetchHistory();
+        fetchHistory(); // Immediate log refresh
         setSelectedPerson(null);
     }
     setProcessing(false);
@@ -387,6 +422,8 @@ export default function Home() {
     else {
       await logAction('New Registration', `Registered: ${newReg.full_name}`);
       showToast("Registered!", 'success');
+      // Refresh to ensure new logs appear in report immediately
+      fetchHistory();
       setIsRegistering(false); 
       setNewReg({ full_name: '', phone_number: '', role: 'Member', branch: '', t_shirt: 'L', t_shirt_color: 'White', invited_by: '', contact_type: 'WhatsApp', location: '' }); 
       setWantsTShirt('no');
@@ -411,6 +448,10 @@ export default function Home() {
     checkedIn: people.filter(p => p.checked_in).length, 
     totalCash: people.reduce((sum, p) => sum + (p.cash_amount || 0), 0),
     totalMomo: people.reduce((sum, p) => sum + (p.momo_amount || 0), 0),
+    red: people.filter(p => p.grace_school === 'Red House').length,
+    blue: people.filter(p => p.grace_school === 'Blue House').length,
+    green: people.filter(p => p.grace_school === 'Green House').length,
+    yellow: people.filter(p => p.grace_school === 'Yellow House').length,
   };
 
   if (!session) { return ( <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative font-sans overflow-hidden"><style>{globalStyles}</style><div className="absolute inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-br from-indigo-950/90 via-purple-900/80 to-black/90 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover scale-105" alt="Background" /></div><div className="relative z-20 w-full max-w-md p-6"><div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl"><div className="text-center mb-8"><h1 className="text-4xl font-extrabold text-white tracking-tight">AMOG <span className="text-indigo-400">2026</span></h1><p className="text-indigo-200 mt-2 font-medium tracking-wider uppercase text-[11px]">Staff Access Portal</p></div><form onSubmit={handleLogin} method="POST" className="space-y-5"><div><label className="text-[11px] font-bold text-indigo-300 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label><div className="relative"><User className="absolute left-4 top-3.5 w-5 h-5 text-indigo-400/60"/><input name="email" type="email" className="w-full pl-12 p-3.5 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-900/50 outline-none transition-all" placeholder="Enter email" required /></div></div><div><label className="text-[11px] font-bold text-indigo-300 uppercase ml-1 mb-2 block tracking-wider">Password</label><div className="relative"><Lock className="absolute left-4 top-3.5 w-5 h-5 text-indigo-400/60"/><input name="password" type="password" className="w-full pl-12 p-3.5 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-900/50 outline-none transition-all" placeholder="••••••••" required /></div></div><button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-900/30 transition-all">Secure Login</button></form></div></div>{toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}</div> ); }
@@ -441,6 +482,14 @@ export default function Home() {
                 <span className="text-lg font-bold text-white">₵{todaysTotal}</span>
                 <div className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></div>
              </div>
+        </div>
+        
+        {/* GRACE SCHOOL COUNTERS */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="bg-red-900/30 border border-red-500/30 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-red-400 font-bold tracking-wider">Red House</p><p className="text-xl font-bold text-white">{stats.red}</p></div>
+            <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-blue-400 font-bold tracking-wider">Blue House</p><p className="text-xl font-bold text-white">{stats.blue}</p></div>
+            <div className="bg-emerald-900/30 border border-emerald-500/30 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-emerald-400 font-bold tracking-wider">Green House</p><p className="text-xl font-bold text-white">{stats.green}</p></div>
+            <div className="bg-yellow-900/30 border border-yellow-500/30 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-yellow-400 font-bold tracking-wider">Yellow House</p><p className="text-xl font-bold text-white">{stats.yellow}</p></div>
         </div>
 
         {/* CONTROLS */}
