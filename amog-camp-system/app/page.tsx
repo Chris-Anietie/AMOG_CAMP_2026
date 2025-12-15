@@ -8,7 +8,10 @@ const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // CONSTANTS
-const GRACE_SCHOOLS = ['Red House', 'Blue House', 'Green House', 'Yellow House'];
+// Updated: 6 Groups instead of 4 Houses
+const GRACE_SCHOOLS = ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5', 'Group 6'];
+
+// Updated: GWC Branches
 const CHURCH_BRANCHES = [
   'GWC_NSAWAM',
   'GWC_LEADERSHIP CITADEL',
@@ -17,10 +20,12 @@ const CHURCH_BRANCHES = [
   'GWC_KINTAMPO',
   'RWI'
 ];
-const REG_FEE = 400;
-const LEADERSHIP_FEE = 1000;
 
-// --- EMBEDDED ICONS (No Install Required) ---
+// Updated: Everyone pays 400 now
+const REG_FEE = 400;
+const LEADERSHIP_FEE = 400; // Changed from 1000 to 400
+
+// --- EMBEDDED ICONS ---
 const IconWrapper = ({ children, className }: { children: React.ReactNode, className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
 );
@@ -89,12 +94,16 @@ function DeleteConfirmationModal({ person, onConfirm, onCancel }: { person: any,
     );
 }
 
-// --- USER REPORT MODAL ---
+// --- USER REPORT MODAL (FIXED) ---
 function UserReportModal({ person, logs, onClose }: { person: any, logs: any[], onClose: () => void }) {
-    // Filter logs for this specific person
-    const userLogs = logs.filter(log => log.details.includes(person.full_name) || log.details.includes(person.phone_number));
-    const isLeader = person.role?.toLowerCase().includes('leader') || person.role?.toLowerCase().includes('pastor');
-    const targetFee = isLeader ? LEADERSHIP_FEE : REG_FEE;
+    // Filter logs by User Name AND Phone Number to catch everything
+    const userLogs = logs.filter(log => 
+        (log.details && log.details.includes(person.full_name)) || 
+        (log.details && log.details.includes(person.phone_number))
+    );
+    
+    // Updated: Everyone pays same fee now
+    const targetFee = REG_FEE; 
     const balance = targetFee - (person.amount_paid || 0);
 
     return (
@@ -112,7 +121,7 @@ function UserReportModal({ person, logs, onClose }: { person: any, logs: any[], 
                     {/* KEY STATS CARD */}
                     <div className="bg-white/5 rounded-2xl p-4 border border-white/10 grid grid-cols-2 gap-4">
                         <div>
-                            <p className="text-[10px] uppercase text-slate-400 font-bold mb-1">Grace School</p>
+                            <p className="text-[10px] uppercase text-slate-400 font-bold mb-1">Grace Group</p>
                             <p className="text-white font-bold text-lg">{person.grace_school || 'Not Assigned'}</p>
                         </div>
                         <div>
@@ -151,6 +160,7 @@ function UserReportModal({ person, logs, onClose }: { person: any, logs: any[], 
                                         <span className="text-[9px] uppercase border border-white/10 px-1 rounded">{log.action_type}</span>
                                     </div>
                                     <p className="text-slate-300">{log.details}</p>
+                                    <p className="text-[10px] text-indigo-400 mt-2 flex items-center gap-1"><User className="w-3 h-3"/> {log.staff_email}</p>
                                 </div>
                             ))}
                         </div>
@@ -232,6 +242,7 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // --- FIXED AUDIT LOGIC (REGEX FIX) ---
   async function runDailyAudit() {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
@@ -291,7 +302,7 @@ export default function Home() {
   async function logAction(action: string, details: string) {
     if (!isOnline) return; 
     await supabase.from('audit_logs').insert([{ staff_email: session?.user?.email, action_type: action, details: details }]);
-    fetchHistory(); 
+    // We do NOT fetchHistory here to avoid race conditions, we do it after the main action
   }
 
   const downloadCSV = () => {
@@ -310,8 +321,7 @@ export default function Home() {
 
   const openPayment = (person: any) => {
     setSelectedPerson(person);
-    const isLeader = person.role?.toLowerCase().includes('leader') || person.role?.toLowerCase().includes('pastor');
-    setTargetFee(isLeader ? LEADERSHIP_FEE : REG_FEE);
+    setTargetFee(REG_FEE);
     setTopUpAmount(''); 
     setPaymentMethod('Cash'); 
     setGender(person.gender || 'Male');
@@ -320,8 +330,7 @@ export default function Home() {
 
   const openCheckIn = (person: any) => {
     setSelectedPerson(person);
-    const isLeader = person.role?.toLowerCase().includes('leader') || person.role?.toLowerCase().includes('pastor');
-    setTargetFee(isLeader ? LEADERSHIP_FEE : REG_FEE);
+    setTargetFee(REG_FEE);
     setModalMode('checkin');
   };
 
@@ -343,7 +352,7 @@ export default function Home() {
     else {
         showToast("User deleted successfully.", 'success');
         fetchPeople();
-        fetchHistory(); 
+        fetchHistory(); // Refresh logs
     }
     setDeletePerson(null);
   }
@@ -368,7 +377,7 @@ export default function Home() {
         await logAction('Payment Received', `Payment for ${selectedPerson.full_name}: Recorded ₵${amount} via ${paymentMethod}. New Total: ₵${totalPaid}.`);
         await fetchPeople();
         showToast(`Payment recorded! Balance updated.`, 'success');
-        fetchHistory();
+        fetchHistory(); // Immediate log refresh
         setSelectedPerson(null);
     }
     setProcessing(false);
@@ -378,14 +387,14 @@ export default function Home() {
     if (!isOnline) { showToast("Offline mode.", "error"); return; }
     if (selectedPerson.amount_paid < targetFee) { showToast("Payment Incomplete.", "error"); return; }
     setProcessing(true);
-    const randomSchool = selectedPerson.grace_school || GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
+    const randomSchool = GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
     const { error } = await supabase.from('participants').update({ grace_school: randomSchool, checked_in: true, checked_in_at: new Date().toISOString(), checked_in_by: session?.user?.email }).eq('id', selectedPerson.id);
     if (error) { showToast("Error: " + error.message, 'error'); } 
     else {
-        await logAction('Check-In', `Checked in ${selectedPerson.full_name}. House: ${randomSchool}`);
+        await logAction('Check-In', `Checked in ${selectedPerson.full_name}. Group: ${randomSchool}`);
         await fetchPeople();
         fetchHistory(); 
-        const message = `Calvary greetings ${selectedPerson.full_name}! ✝️%0A%0AWelcome to AMOG 2026.%0A%0A*Registration Complete:*%0A🏠 *House:* ${randomSchool}%0A💰 *Total Paid:* ₵${selectedPerson.amount_paid}%0A%0AGod bless you!`;
+        const message = `Calvary greetings ${selectedPerson.full_name}! ✝️%0A%0AWelcome to AMOG 2026.%0A%0A*Registration Complete:*%0A🏠 *Group:* ${randomSchool}%0A💰 *Total Paid:* ₵${selectedPerson.amount_paid}%0A%0AGod bless you!`;
         window.open(`https://wa.me/233${selectedPerson.phone_number?.substring(1)}?text=${message}`, '_blank');
         showToast(`Checked In Successfully!`, 'success');
         setSelectedPerson(null);
@@ -401,7 +410,7 @@ export default function Home() {
     const existing = people.find(p => p.phone_number === newReg.phone_number);
     if (existing) { showToast(`${existing.full_name} exists!`, 'error'); setProcessing(false); return; }
     
-    const randomSchool = GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
+    // Default null until check-in
     
     let finalTShirt = null;
     if (wantsTShirt === 'yes') {
@@ -416,7 +425,7 @@ export default function Home() {
         cash_amount: 0, 
         momo_amount: 0, 
         checked_in: false, 
-        grace_school: randomSchool 
+        // grace_school: randomSchool // Removed auto-assign on reg, only on check-in
     }]).select();
 
     if (error) { showToast(error.message, 'error'); } 
@@ -455,10 +464,13 @@ export default function Home() {
     checkedIn: people.filter(p => p.checked_in).length, 
     totalCash: people.reduce((sum, p) => sum + (p.cash_amount || 0), 0),
     totalMomo: people.reduce((sum, p) => sum + (p.momo_amount || 0), 0),
-    red: people.filter(p => p.grace_school === 'Red House').length,
-    blue: people.filter(p => p.grace_school === 'Blue House').length,
-    green: people.filter(p => p.grace_school === 'Green House').length,
-    yellow: people.filter(p => p.grace_school === 'Yellow House').length,
+    // Updated Stats for 6 Groups
+    g1: people.filter(p => p.grace_school === 'Group 1').length,
+    g2: people.filter(p => p.grace_school === 'Group 2').length,
+    g3: people.filter(p => p.grace_school === 'Group 3').length,
+    g4: people.filter(p => p.grace_school === 'Group 4').length,
+    g5: people.filter(p => p.grace_school === 'Group 5').length,
+    g6: people.filter(p => p.grace_school === 'Group 6').length,
   };
 
   if (!session) { return ( <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative font-sans overflow-hidden"><style>{globalStyles}</style><div className="absolute inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-br from-indigo-950/90 via-purple-900/80 to-black/90 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover scale-105" alt="Background" /></div><div className="relative z-20 w-full max-w-md p-6"><div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl"><div className="text-center mb-8"><h1 className="text-4xl font-extrabold text-white tracking-tight">AMOG <span className="text-indigo-400">2026</span></h1><p className="text-indigo-200 mt-2 font-medium tracking-wider uppercase text-[11px]">Staff Access Portal</p></div><form onSubmit={handleLogin} method="POST" className="space-y-5"><div><label className="text-[11px] font-bold text-indigo-300 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label><div className="relative"><User className="absolute left-4 top-3.5 w-5 h-5 text-indigo-400/60"/><input name="email" type="email" className="w-full pl-12 p-3.5 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-900/50 outline-none transition-all" placeholder="Enter email" required /></div></div><div><label className="text-[11px] font-bold text-indigo-300 uppercase ml-1 mb-2 block tracking-wider">Password</label><div className="relative"><Lock className="absolute left-4 top-3.5 w-5 h-5 text-indigo-400/60"/><input name="password" type="password" className="w-full pl-12 p-3.5 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-900/50 outline-none transition-all" placeholder="••••••••" required /></div></div><button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-900/30 transition-all">Secure Login</button></form></div></div>{toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}</div> ); }
@@ -473,7 +485,7 @@ export default function Home() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 py-8">
         {/* HEADER & STATS */}
         <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-6">
-          <div className="text-center lg:text-left"><h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">AMOG <span className="text-indigo-500">2026</span></h1><p className="text-slate-400 font-medium text-sm tracking-wide mt-1">Registration & Help Desk</p></div>
+          <div className="text-center lg:text-left"><h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">AMOG <span className="text-indigo-500">2026</span></h1><p className="text-slate-400 font-medium text-sm tracking-wide mt-1">Registration & Check-In Desk</p></div>
           <div className="flex gap-3">
             <div className="bg-white/5 backdrop-blur-md px-5 py-3 rounded-xl border border-white/10 flex items-center gap-3"><Users className="w-5 h-5 text-indigo-400"/><div className="text-left"><p className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">In Camp</p><p className="text-xl font-bold text-white leading-none">{stats.checkedIn}</p></div></div>
             <div className="bg-emerald-900/30 backdrop-blur-md px-5 py-3 rounded-xl border border-emerald-500/20 flex items-center gap-3"><Coins className="w-5 h-5 text-emerald-400"/><div className="text-left"><p className="text-[10px] uppercase text-emerald-400 font-bold tracking-wider">Cash</p><p className="text-xl font-bold text-emerald-100 font-mono leading-none">₵{stats.totalCash}</p></div></div>
@@ -491,12 +503,14 @@ export default function Home() {
              </div>
         </div>
         
-        {/* GRACE SCHOOL COUNTERS */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-red-900/30 border border-red-500/30 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-red-400 font-bold tracking-wider">Red House</p><p className="text-xl font-bold text-white">{stats.red}</p></div>
-            <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-blue-400 font-bold tracking-wider">Blue House</p><p className="text-xl font-bold text-white">{stats.blue}</p></div>
-            <div className="bg-emerald-900/30 border border-emerald-500/30 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-emerald-400 font-bold tracking-wider">Green House</p><p className="text-xl font-bold text-white">{stats.green}</p></div>
-            <div className="bg-yellow-900/30 border border-yellow-500/30 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-yellow-400 font-bold tracking-wider">Yellow House</p><p className="text-xl font-bold text-white">{stats.yellow}</p></div>
+        {/* GRACE SCHOOL COUNTERS (Updated for Groups 1-6) */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+            <div className="bg-indigo-900/20 border border-indigo-500/20 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-indigo-300 font-bold tracking-wider">Group 1</p><p className="text-xl font-bold text-white">{stats.g1}</p></div>
+            <div className="bg-teal-900/20 border border-teal-500/20 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-teal-300 font-bold tracking-wider">Group 2</p><p className="text-xl font-bold text-white">{stats.g2}</p></div>
+            <div className="bg-pink-900/20 border border-pink-500/20 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-pink-300 font-bold tracking-wider">Group 3</p><p className="text-xl font-bold text-white">{stats.g3}</p></div>
+            <div className="bg-amber-900/20 border border-amber-500/20 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-amber-300 font-bold tracking-wider">Group 4</p><p className="text-xl font-bold text-white">{stats.g4}</p></div>
+            <div className="bg-blue-900/20 border border-blue-500/20 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-blue-300 font-bold tracking-wider">Group 5</p><p className="text-xl font-bold text-white">{stats.g5}</p></div>
+            <div className="bg-purple-900/20 border border-purple-500/20 p-3 rounded-2xl text-center backdrop-blur-md"><p className="text-[10px] uppercase text-purple-300 font-bold tracking-wider">Group 6</p><p className="text-xl font-bold text-white">{stats.g6}</p></div>
         </div>
 
         {/* CONTROLS */}
@@ -527,7 +541,7 @@ export default function Home() {
           {filteredPeople.map((p) => {
             const totalPaid = (p.cash_amount || 0) + (p.momo_amount || 0);
             const isLeader = p.role?.toLowerCase().includes('leader') || p.role?.toLowerCase().includes('pastor');
-            const fee = isLeader ? LEADERSHIP_FEE : REG_FEE;
+            const fee = REG_FEE;
             const balance = fee - totalPaid;
             const isOwing = balance > 0;
             
