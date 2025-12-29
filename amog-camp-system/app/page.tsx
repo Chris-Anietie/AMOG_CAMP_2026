@@ -8,22 +8,17 @@ const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // CONSTANTS
-// Updated: 6 Groups instead of 4 Houses
 const GRACE_SCHOOLS = ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5', 'Group 6'];
-
-// Updated: GWC Branches
 const CHURCH_BRANCHES = [
   'GWC_NSAWAM',
   'GWC_LEADERSHIP CITADEL',
   'GWC_KUTUNSE',
   'GWC_KUMASI',
   'GWC_KINTAMPO',
-  'RWI'
+  'RWI',
+  'Guest / Visitor'
 ];
-
-// Updated: Everyone pays 400 now
 const REG_FEE = 400;
-const LEADERSHIP_FEE = 400; // Changed from 1000 to 400
 
 // --- EMBEDDED ICONS ---
 const IconWrapper = ({ children, className }: { children: React.ReactNode, className?: string }) => (
@@ -49,6 +44,7 @@ const Trash2 = ({ className }: { className?: string }) => <IconWrapper className
 const AlertTriangle = ({ className }: { className?: string }) => <IconWrapper className={className}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></IconWrapper>;
 const MapPin = ({ className }: { className?: string }) => <IconWrapper className={className}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></IconWrapper>;
 const Filter = ({ className }: { className?: string }) => <IconWrapper className={className}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></IconWrapper>;
+const Edit = ({ className }: { className?: string }) => <IconWrapper className={className}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></IconWrapper>;
 
 // --- STYLES ---
 const globalStyles = `
@@ -94,77 +90,89 @@ function DeleteConfirmationModal({ person, onConfirm, onCancel }: { person: any,
     );
 }
 
-// --- USER REPORT MODAL (FIXED) ---
-function UserReportModal({ person, logs, onClose }: { person: any, logs: any[], onClose: () => void }) {
-    // Filter logs by User Name AND Phone Number to catch everything
-    const userLogs = logs.filter(log => 
-        (log.details && log.details.includes(person.full_name)) || 
-        (log.details && log.details.includes(person.phone_number))
-    );
-    
-    // Updated: Everyone pays same fee now
+// --- USER REPORT MODAL (WITH EDIT) ---
+function UserReportModal({ person, logs, onClose, onUpdate }: { person: any, logs: any[], onClose: () => void, onUpdate: (updated: any) => void }) {
+    const userLogs = logs.filter(log => (log.details && log.details.includes(person.full_name)) || (log.details && log.details.includes(person.phone_number)));
     const targetFee = REG_FEE; 
     const balance = targetFee - (person.amount_paid || 0);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editData, setEditData] = useState({ ...person });
+
+    const handleSave = () => {
+        onUpdate(editData);
+        setIsEditing(false);
+    };
 
     return (
         <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
                 <div className="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-6 border-b border-white/10 flex justify-between items-center shrink-0">
                     <div>
-                        <h2 className="text-xl font-bold text-white">Profile Details</h2>
+                        <h2 className="text-xl font-bold text-white">{isEditing ? 'Edit Profile' : 'Profile Details'}</h2>
                         <span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">{person.full_name}</span>
                     </div>
                     <button onClick={onClose} className="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full text-white flex items-center justify-center">✕</button>
                 </div>
                 
                 <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-                    {/* KEY STATS CARD */}
                     <div className="bg-white/5 rounded-2xl p-4 border border-white/10 grid grid-cols-2 gap-4">
+                        <div><p className="text-[10px] uppercase text-slate-400 font-bold mb-1">Grace Group</p><p className="text-white font-bold text-lg">{person.grace_school || 'Not Assigned'}</p></div>
+                        <div><p className="text-[10px] uppercase text-slate-400 font-bold mb-1">Payment Status</p><p className={`font-bold text-lg ${balance <= 0 ? 'text-emerald-400' : 'text-amber-500'}`}>{balance <= 0 ? 'PAID' : `OWING ₵${balance}`}</p></div>
+                        <div><p className="text-[10px] uppercase text-slate-400 font-bold mb-1">Total Paid</p><p className="text-white font-mono text-lg">₵{person.amount_paid || 0}</p></div>
                         <div>
-                            <p className="text-[10px] uppercase text-slate-400 font-bold mb-1">Grace Group</p>
-                            <p className="text-white font-bold text-lg">{person.grace_school || 'Not Assigned'}</p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase text-slate-400 font-bold mb-1">Payment Status</p>
-                            <p className={`font-bold text-lg ${balance <= 0 ? 'text-emerald-400' : 'text-amber-500'}`}>
-                                {balance <= 0 ? 'PAID' : `OWING ₵${balance}`}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase text-slate-400 font-bold mb-1">Total Paid</p>
-                            <p className="text-white font-mono text-lg">₵{person.amount_paid || 0}</p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase text-slate-400 font-bold mb-1">T-Shirt</p>
-                            <p className="text-white text-sm">{person.t_shirt || 'None'}</p>
+                             <p className="text-[10px] uppercase text-slate-400 font-bold mb-1 flex items-center gap-2">
+                                T-Shirt 
+                                {!isEditing && <button onClick={() => setIsEditing(true)} className="text-indigo-400 hover:text-white"><Edit className="w-3 h-3" /></button>}
+                             </p>
+                             {isEditing ? (
+                                <input type="text" className="bg-black/30 border border-white/10 rounded px-2 py-1 text-white text-sm w-full" value={editData.t_shirt || ''} onChange={e => setEditData({...editData, t_shirt: e.target.value})} placeholder="Size (Color) or leave empty" />
+                             ) : (
+                                <p className="text-white text-sm">{person.t_shirt || 'None'}</p>
+                             )}
                         </div>
                     </div>
 
-                    {/* DETAILED INFO LIST */}
                     <div className="space-y-3 text-sm">
-                        <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Branch</span><span className="text-white">{person.branch}</span></div>
-                        <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Location</span><span className="text-white">{person.location || '-'}</span></div>
-                        <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Phone</span><span className="text-white">{person.phone_number}</span></div>
-                        <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Contact Method</span><span className="text-white">{person.contact_type || '-'}</span></div>
-                        <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Invited By</span><span className="text-white">{person.invited_by || '-'}</span></div>
+                        {isEditing ? (
+                             <>
+                                <div><label className="text-xs text-slate-400">Full Name</label><input type="text" className="w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-white mt-1" value={editData.full_name} onChange={e => setEditData({...editData, full_name: e.target.value})} /></div>
+                                <div><label className="text-xs text-slate-400">Phone</label><input type="text" className="w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-white mt-1" value={editData.phone_number} onChange={e => setEditData({...editData, phone_number: e.target.value})} /></div>
+                                <div><label className="text-xs text-slate-400">Branch</label>
+                                    <select className="w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-white mt-1" value={editData.branch} onChange={e => setEditData({...editData, branch: e.target.value})}>
+                                        <option value="">Select Branch</option>
+                                        {CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}
+                                    </select>
+                                </div>
+                                <button onClick={handleSave} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold mt-2">Save Changes</button>
+                             </>
+                        ) : (
+                            <>
+                                <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Branch</span><span className="text-white">{person.branch || 'Guest / Visitor'}</span></div>
+                                <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Location</span><span className="text-white">{person.location || '-'}</span></div>
+                                <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Phone</span><span className="text-white">{person.phone_number}</span></div>
+                                <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400">Contact Method</span><span className="text-white">{person.contact_type || '-'}</span></div>
+                                <button onClick={() => setIsEditing(true)} className="w-full text-center text-xs text-indigo-400 hover:text-white mt-2 font-bold uppercase tracking-wider border border-indigo-500/30 rounded-lg py-2 hover:bg-indigo-500/10 transition-all">Edit Profile</button>
+                            </>
+                        )}
                     </div>
 
-                    {/* AUDIT LOG SECTION */}
-                    <div>
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Clock className="w-3 h-3"/> System Logs</h4>
-                        <div className="space-y-2">
-                            {userLogs.length === 0 ? <p className="text-slate-500 text-xs italic">No system logs found.</p> : userLogs.map((log, i) => (
-                                <div key={i} className="text-xs p-3 bg-black/20 rounded-lg border border-white/5">
-                                    <div className="flex justify-between mb-1 text-slate-400">
-                                        <span>{new Date(log.created_at).toLocaleDateString()}</span>
-                                        <span className="text-[9px] uppercase border border-white/10 px-1 rounded">{log.action_type}</span>
+                    {!isEditing && (
+                        <div>
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Clock className="w-3 h-3"/> System Logs</h4>
+                            <div className="space-y-2">
+                                {userLogs.length === 0 ? <p className="text-slate-500 text-xs italic">No system logs found.</p> : userLogs.map((log, i) => (
+                                    <div key={i} className="text-xs p-3 bg-black/20 rounded-lg border border-white/5">
+                                        <div className="flex justify-between mb-1 text-slate-400">
+                                            <span>{new Date(log.created_at).toLocaleDateString()}</span>
+                                            <span className="text-[9px] uppercase border border-white/10 px-1 rounded">{log.action_type}</span>
+                                        </div>
+                                        <p className="text-slate-300">{log.details}</p>
+                                        <p className="text-[10px] text-indigo-400 mt-2 flex items-center gap-1"><User className="w-3 h-3"/> {log.staff_email}</p>
                                     </div>
-                                    <p className="text-slate-300">{log.details}</p>
-                                    <p className="text-[10px] text-indigo-400 mt-2 flex items-center gap-1"><User className="w-3 h-3"/> {log.staff_email}</p>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -208,9 +216,9 @@ export default function Home() {
   const [todaysTotal, setTodaysTotal] = useState(0);
   const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 });
 
-  const [selectedPerson, setSelectedPerson] = useState<any>(null); // For Payment/Checkin Modal
-  const [reportPerson, setReportPerson] = useState<any>(null); // For Report Modal
-  const [deletePerson, setDeletePerson] = useState<any>(null); // For Delete Confirmation
+  const [selectedPerson, setSelectedPerson] = useState<any>(null); 
+  const [reportPerson, setReportPerson] = useState<any>(null); 
+  const [deletePerson, setDeletePerson] = useState<any>(null); 
   const [isRegistering, setIsRegistering] = useState(false); 
   const [showHistory, setShowHistory] = useState(false);
   const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); 
@@ -222,12 +230,13 @@ export default function Home() {
   const [processing, setProcessing] = useState(false);
   const [gender, setGender] = useState('Male');
   
+  // T-SHIRT DEFAULT NO
+  const [wantsTShirt, setWantsTShirt] = useState('no');
   const [newReg, setNewReg] = useState({ 
       full_name: '', phone_number: '', role: 'Member', branch: '', 
       t_shirt: 'L', t_shirt_color: 'White', invited_by: '', 
       contact_type: 'WhatsApp', location: '' 
   });
-  const [wantsTShirt, setWantsTShirt] = useState('no');
   const [toast, setToast] = useState<{msg: string, type: 'success' | 'error' | 'warning'} | null>(null);
 
   useEffect(() => {
@@ -242,7 +251,6 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- FIXED AUDIT LOGIC (REGEX FIX) ---
   async function runDailyAudit() {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
@@ -302,7 +310,6 @@ export default function Home() {
   async function logAction(action: string, details: string) {
     if (!isOnline) return; 
     await supabase.from('audit_logs').insert([{ staff_email: session?.user?.email, action_type: action, details: details }]);
-    // We do NOT fetchHistory here to avoid race conditions, we do it after the main action
   }
 
   const downloadCSV = () => {
@@ -340,6 +347,25 @@ export default function Home() {
       });
   };
 
+  async function handleUpdateProfile(updatedPerson: any) {
+      if (!isOnline) return;
+      const { error } = await supabase.from('participants').update({
+          full_name: updatedPerson.full_name,
+          phone_number: updatedPerson.phone_number,
+          branch: updatedPerson.branch,
+          t_shirt: updatedPerson.t_shirt
+      }).eq('id', updatedPerson.id);
+
+      if (error) {
+          showToast('Update Failed', 'error');
+      } else {
+          showToast('Profile Updated', 'success');
+          await logAction('Profile Update', `Updated details for ${updatedPerson.full_name}`);
+          fetchPeople();
+          setReportPerson(updatedPerson); 
+      }
+  }
+
   const initiateDelete = (person: any) => {
       setDeletePerson(person);
   };
@@ -352,7 +378,7 @@ export default function Home() {
     else {
         showToast("User deleted successfully.", 'success');
         fetchPeople();
-        fetchHistory(); // Refresh logs
+        fetchHistory(); 
     }
     setDeletePerson(null);
   }
@@ -377,7 +403,7 @@ export default function Home() {
         await logAction('Payment Received', `Payment for ${selectedPerson.full_name}: Recorded ₵${amount} via ${paymentMethod}. New Total: ₵${totalPaid}.`);
         await fetchPeople();
         showToast(`Payment recorded! Balance updated.`, 'success');
-        fetchHistory(); // Immediate log refresh
+        fetchHistory();
         setSelectedPerson(null);
     }
     setProcessing(false);
@@ -410,7 +436,7 @@ export default function Home() {
     const existing = people.find(p => p.phone_number === newReg.phone_number);
     if (existing) { showToast(`${existing.full_name} exists!`, 'error'); setProcessing(false); return; }
     
-    // Default null until check-in
+    const randomSchool = GRACE_SCHOOLS[Math.floor(Math.random() * GRACE_SCHOOLS.length)];
     
     let finalTShirt = null;
     if (wantsTShirt === 'yes') {
@@ -593,114 +619,6 @@ export default function Home() {
           })}
         </div>
       </div>
-
-      {showHistory && (<div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-[2px] animate-in fade-in"><div className="bg-[#161f32] border border-white/10 rounded-3xl w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95"><div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5"><h2 className="font-bold text-lg text-white flex items-center gap-2"><FileText className="w-5 h-5 text-indigo-400"/>Transaction History</h2><button onClick={() => setShowHistory(false)} className="bg-white/10 hover:bg-white/20 text-slate-300 w-8 h-8 rounded-full">✕</button></div><div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">{historyLogs.length === 0 ? (<div className="text-center text-slate-500 mt-10">No logs yet.</div>) : (historyLogs.map((log, i) => (<div key={i} className="p-4 rounded-2xl bg-black/30 border border-white/5"><div className="flex justify-between mb-2"><span className="font-mono text-[10px] text-indigo-400 uppercase tracking-wider">{new Date(log.created_at).toLocaleString()}</span><span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">{log.action_type}</span></div><p className="text-slate-200 text-sm font-medium">{log.details}</p><p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><User className="w-3 h-3"/> {log.staff_email}</p></div>)))}</div></div></div>)}
-      
-      {showDailyAuditModal && (
-        <DailyAuditModal dailyAudit={dailyAudit} todaysTotal={todaysTotal} onClose={() => setShowDailyAuditModal(false)} />
-      )}
-
-      {/* NEW USER REPORT MODAL */}
-      {reportPerson && (
-        <UserReportModal person={reportPerson} logs={historyLogs} onClose={() => setReportPerson(null)} />
-      )}
-      
-      {/* DELETE CONFIRMATION MODAL */}
-      {deletePerson && (
-        <DeleteConfirmationModal person={deletePerson} onConfirm={confirmDelete} onCancel={() => setDeletePerson(null)} />
-      )}
-
-      {selectedPerson && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-[2px] animate-in fade-in duration-200">
-          <div className="bg-[#161f32] border border-white/10 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="bg-white/5 p-6 border-b border-white/10 flex justify-between items-center">
-               <div>
-                 <h2 className="text-xl font-bold text-white">{selectedPerson.full_name}</h2>
-                 <span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">{modalMode === 'payment' ? 'Record Payment' : 'Check-In'}</span>
-               </div>
-               <button onClick={() => setSelectedPerson(null)} className="bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all w-8 h-8 flex items-center justify-center rounded-full">✕</button>
-            </div>
-            
-            {modalMode === 'payment' ? (
-                <div className="p-6 space-y-4 animate-in fade-in duration-200">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Method</label><select className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-indigo-500" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option className="bg-slate-900" value="Cash">Cash</option><option className="bg-slate-900" value="MoMo">MoMo</option></select></div>
-                        <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Gender</label><div className="flex bg-white/5 rounded-xl p-1 border border-white/10"><button disabled={!!selectedPerson.gender} onClick={() => setGender('Male')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Male' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}>Male</button><button disabled={!!selectedPerson.gender} onClick={() => setGender('Female')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${gender === 'Female' ? 'bg-pink-600 text-white' : 'text-slate-500'}`}>Female</button></div></div>
-                    </div>
-                    <div className="flex items-center gap-3 bg-black/30 p-4 rounded-2xl border border-dashed border-slate-700">
-                        <span className="text-2xl font-bold text-green-500">+</span>
-                        <input type="number" min="0" onKeyDown={(e) => ["-", "e", "+"].includes(e.key) && e.preventDefault()} className="w-full bg-transparent border-none p-0 text-3xl font-mono font-bold text-white outline-none placeholder-slate-700" placeholder="0" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} />
-                    </div>
-                    <button onClick={handleRecordPayment} disabled={processing} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-lg font-bold shadow-xl">💰 Record Payment</button>
-                </div>
-            ) : (
-                <div className="p-6 space-y-6 animate-in fade-in duration-200">
-                    <div className="bg-white/5 p-6 rounded-2xl border border-white/10 text-center">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Current Balance</p>
-                        <p className={`text-4xl font-extrabold ${selectedPerson.amount_paid >= targetFee ? 'text-emerald-400' : 'text-amber-500'}`}>
-                            {selectedPerson.amount_paid >= targetFee ? 'CLEARED' : `OWES ₵${targetFee - selectedPerson.amount_paid}`}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-2 font-mono">Total Paid: ₵{selectedPerson.amount_paid}</p>
-                        {selectedPerson.checked_in && <p className="text-xs text-emerald-400 mt-1 font-bold">Assigned: {selectedPerson.grace_school}</p>}
-                    </div>
-                    {selectedPerson.amount_paid < targetFee ? (
-                        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-200 text-sm text-center">
-                            ⚠️ Full payment required before check-in.
-                        </div>
-                    ) : (
-                        <button onClick={handleFinalCheckIn} disabled={processing || selectedPerson.checked_in} className={`w-full py-5 text-white rounded-xl text-xl font-bold shadow-xl transition-all ${selectedPerson.checked_in ? 'bg-white/10 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500'}`}>
-                            {selectedPerson.checked_in ? '✅ Already Checked In' : '✅ Admit & Assign House'}
-                        </button>
-                    )}
-                </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {isRegistering && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-[2px] animate-in fade-in duration-200">
-          <div className="bg-[#161f32] border border-white/10 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="bg-white/5 p-5 border-b border-white/10 flex justify-between items-center shrink-0"><h2 className="text-lg font-bold text-white flex items-center gap-2"><Plus className="w-5 h-5 text-indigo-400"/>New Registration</h2><button onClick={() => setIsRegistering(false)} className="bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all w-8 h-8 flex items-center justify-center rounded-full">✕</button></div>
-            <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar">
-              <div className="space-y-3"><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Full Name</label><div className="relative"><User className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><input type="text" className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500/50 outline-none placeholder-slate-600" placeholder="Surname Firstname" value={newReg.full_name} onChange={e => setNewReg({...newReg, full_name: e.target.value})} /></div></div><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Phone</label><div className="grid grid-cols-3 gap-2"><div className="relative col-span-2"><Phone className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><input type="tel" className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500/50 outline-none placeholder-slate-600" placeholder="055..." value={newReg.phone_number} onChange={e => setNewReg({...newReg, phone_number: e.target.value})} /></div><div className="col-span-1"><select className="w-full h-full p-1 rounded-xl bg-black/30 border border-white/10 text-white text-xs focus:border-indigo-500/50 outline-none appearance-none text-center" value={newReg.contact_type} onChange={e => setNewReg({...newReg, contact_type: e.target.value})}><option className="bg-slate-900" value="WhatsApp">WhatsApp</option><option className="bg-slate-900" value="Call">Call</option><option className="bg-slate-900" value="Both">Both</option></select></div></div></div></div>
-              <div className="grid grid-cols-2 gap-3"><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Role</label><div className="relative"><Users className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><select className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none" value={newReg.role} onChange={e => setNewReg({...newReg, role: e.target.value})}><option className="bg-slate-900">Member</option><option className="bg-slate-900">Leader</option><option className="bg-slate-900">Pastor</option><option className="bg-slate-900">Guest</option></select></div></div><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Branch</label><div className="relative"><HomeIcon className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><select className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none" value={newReg.branch} onChange={e => setNewReg({...newReg, branch: e.target.value})}><option value="" disabled className="bg-slate-900">Select Branch</option>{CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}</select></div></div></div>
-              
-              {/* T-SHIRT TOGGLE LOGIC (WITH COLOR) */}
-              <div className="space-y-3 pt-2 border-t border-white/5">
-                <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Do you want a T-Shirt? (₵60)</label>
-                    <div className="flex bg-black/30 rounded-lg p-1">
-                        <button onClick={() => setWantsTShirt('yes')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${wantsTShirt === 'yes' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Yes</button>
-                        <button onClick={() => setWantsTShirt('no')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${wantsTShirt === 'no' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>No</button>
-                    </div>
-                </div>
-                
-                {wantsTShirt === 'yes' && (
-                    <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2">
-                        <div>
-                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Size</label>
-                            <select className="w-full p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none" value={newReg.t_shirt} onChange={e => setNewReg({...newReg, t_shirt: e.target.value})}>
-                                <option className="bg-slate-900" value="S">S</option><option className="bg-slate-900" value="M">M</option><option className="bg-slate-900" value="L">L</option><option className="bg-slate-900" value="XL">XL</option><option className="bg-slate-900" value="XXL">XXL</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Color</label>
-                            <select className="w-full p-3 rounded-xl bg-black/30 border border-white/10 text-white outline-none appearance-none" value={newReg.t_shirt_color} onChange={e => setNewReg({...newReg, t_shirt_color: e.target.value})}>
-                                <option className="bg-slate-900">White</option><option className="bg-slate-900">Black</option><option className="bg-slate-900">Navy Blue</option><option className="bg-slate-900">Grey</option>
-                            </select>
-                        </div>
-                    </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3"><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Location</label><div className="relative"><MapPin className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><input type="text" className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500/50 outline-none placeholder-slate-600" placeholder="City/Region" value={newReg.location} onChange={e => setNewReg({...newReg, location: e.target.value})} /></div></div><div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block ml-1">Invited By</label><div className="relative"><User className="absolute left-3 top-3.5 w-4 h-4 text-slate-500"/><input type="text" className="w-full pl-9 p-3 rounded-xl bg-black/30 border border-white/10 text-white focus:border-indigo-500/50 outline-none placeholder-slate-600" placeholder="Optional" value={newReg.invited_by} onChange={e => setNewReg({...newReg, invited_by: e.target.value})} /></div></div></div>
-
-              <button onClick={handleNewRegistration} disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-bold text-lg mt-2 shadow-xl shadow-indigo-900/30 transition-all active:scale-95 flex items-center justify-center gap-2">{processing ? 'Saving...' : <><CheckCircle className="w-5 h-5"/> Complete Registration</>}</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
