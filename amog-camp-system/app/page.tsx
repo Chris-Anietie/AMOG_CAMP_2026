@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
+// FIXED IMPORT: Using the standard library that matches the <QRCode> component below
 import { QRCodeSVG } from "qrcode.react";
 
 // --- CONFIGURATION ---
@@ -14,7 +15,7 @@ const MALE_GROUPS = ['Group 1', 'Group 2', 'Group 3'];
 const FEMALE_GROUPS = ['Group 4', 'Group 5', 'Group 6'];
 const CHURCH_BRANCHES = ['GWC_NSAWAM', 'GWC_LEADERSHIP CITADEL', 'GWC_KUTUNSE', 'GWC_KUMASI', 'GWC_KINTAMPO', 'RWI', 'Guest / Visitor'];
 const REG_FEE = 400;
-const MANAGER_PIN = "2026?AMOG"; 
+const MANAGER_PIN = "2026"; 
 
 // --- ICONS ---
 const IconWrapper = ({ children, className }: any) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>);
@@ -55,66 +56,41 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
-// --- UPDATED TICKET MODAL (Readable Scan) ---
+// --- TICKET MODAL WITH QR CODE ---
 function TicketModal({ person, onClose }: any) {
     if (!person) return null;
     
-    // CHANGE: Format this as simple text so security guards can read it easily
+    // The data encoded in the QR code - Readable Text format
     const qrData = `OFFICIAL GATE PASS\nName: ${person.full_name}\nGroup: ${person.grace_school || 'Not Assigned'}\nReceipt: #${person.receipt_no}\nSTATUS: PAID ✅`;
 
     return (
         <ModalBackdrop onClose={onClose}>
             <div className="bg-[#1e293b] w-full max-w-sm rounded-3xl border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 relative">
                 <button onClick={onClose} className="absolute top-4 right-4 z-10 bg-black/40 hover:bg-black/60 rounded-full p-1 text-white transition-all"><X className="w-5 h-5"/></button>
-                
                 <div className="bg-indigo-600 p-6 text-center pt-8 pb-8 relative overflow-hidden">
                     <div className="absolute top-[-50px] left-[-50px] w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
                     <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">AMOG 2026</h2>
                     <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Official Gate Pass</p>
                 </div>
-
                 <div className="bg-white p-6 relative">
-                    {/* Ripped Paper Effect */}
                     <div className="absolute top-[-10px] left-[-10px] w-5 h-5 bg-[#1e293b] rounded-full"></div>
                     <div className="absolute top-[-10px] right-[-10px] w-5 h-5 bg-[#1e293b] rounded-full"></div>
                     <div className="border-b-2 border-dashed border-slate-200 absolute top-0 left-4 right-4"></div>
-
                     <div className="text-center space-y-4 pt-4">
                         <div className="flex justify-center my-4">
                             <div className="p-2 border-2 border-slate-900 rounded-lg">
-                                {/* QR Code now holds the readable text */}
-                                <QRCode 
-                                    value={qrData} 
-                                    size={120} 
-                                    fgColor="#0f172a" 
-                                    bgColor="#ffffff" 
-                                    level="M" 
-                                />
+                                {/* FIXED: Using QRCode component correctly */}
+                                <QRCodeSVG value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="M" />
                             </div>
                         </div>
-
-                        <div>
-                            <h3 className="text-xl font-bold text-slate-900 leading-tight">{person.full_name}</h3>
-                            <p className="text-xs text-slate-500 uppercase tracking-widest mt-1">Camper</p>
-                        </div>
-                        
+                        <div><h3 className="text-xl font-bold text-slate-900 leading-tight">{person.full_name}</h3><p className="text-xs text-slate-500 uppercase tracking-widest mt-1">Camper</p></div>
                         <div className="flex justify-center gap-4">
-                            <div className="bg-slate-100 rounded-xl p-3 flex-1">
-                                <p className="text-[10px] text-slate-400 uppercase font-bold">Group</p>
-                                <p className="text-2xl font-black text-indigo-600">{person.grace_school || '?'}</p>
-                            </div>
-                            <div className="bg-slate-100 rounded-xl p-3 flex-1">
-                                <p className="text-[10px] text-slate-400 uppercase font-bold">Receipt</p>
-                                <p className="text-xl font-mono font-bold text-slate-700">#{person.receipt_no}</p>
-                            </div>
+                            <div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Group</p><p className="text-2xl font-black text-indigo-600">{person.grace_school || '?'}</p></div>
+                            <div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Receipt</p><p className="text-xl font-mono font-bold text-slate-700">#{person.receipt_no}</p></div>
                         </div>
-
                         <div className="border-t border-slate-100 pt-4">
-                            <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200">
-                                <CheckCircle className="w-4 h-4"/> PAID IN FULL
-                            </div>
+                            <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200"><CheckCircle className="w-4 h-4"/> PAID IN FULL</div>
                         </div>
-                        
                         <p className="text-[10px] text-slate-400 mt-2">Gate Security: Scan to verify details.</p>
                     </div>
                 </div>
