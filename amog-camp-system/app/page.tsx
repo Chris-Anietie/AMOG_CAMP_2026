@@ -9,14 +9,14 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// --- CONSTANTS ---
+// CONSTANTS
 const GRACE_SCHOOLS = ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5', 'Group 6'];
 const MALE_GROUPS = ['Group 1', 'Group 2', 'Group 3'];
 const FEMALE_GROUPS = ['Group 4', 'Group 5', 'Group 6'];
 const CHURCH_BRANCHES = ['GWC_NSAWAM', 'GWC_LEADERSHIP CITADEL', 'GWC_KUTUNSE', 'GWC_KUMASI', 'GWC_KINTAMPO', 'RWI', 'Guest / Visitor'];
 const REG_FEE = 400;
 const MANAGER_PIN = "2026?AMOG"; 
-const GROUP_CAPACITY = 20; // Max capacity per dormitory
+const GROUP_CAPACITY = 20;
 
 // --- ICONS ---
 const IconWrapper = ({ children, className }: any) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>);
@@ -40,6 +40,7 @@ const RefreshCw = ({ className }: any) => <IconWrapper className={className}><pa
 const Download = ({ className }: any) => <IconWrapper className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconWrapper>;
 const Ticket = ({ className }: any) => <IconWrapper className={className}><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></IconWrapper>;
 const WifiOff = ({ className }: any) => <IconWrapper className={className}><line x1="1" x2="23" y1="1" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" x2="12.01" y1="20" y2="20"/></IconWrapper>;
+const Briefcase = ({ className }: any) => <IconWrapper className={className}><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></IconWrapper>;
 
 // --- COMPONENT: MODAL BACKDROP ---
 const ModalBackdrop = ({ children, onClose }: { children: React.ReactNode, onClose: () => void }) => (
@@ -58,7 +59,7 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
-// --- TICKET MODAL WITH QR CODE (FIXED: Uses QRCodeSVG) ---
+// --- TICKET MODAL WITH QR CODE ---
 function TicketModal({ person, onClose }: any) {
     if (!person) return null;
     const qrData = `OFFICIAL GATE PASS\nName: ${person.full_name}\nGroup: ${person.grace_school || 'Not Assigned'}\nReceipt: #${person.receipt_no}\nSTATUS: PAID ✅`;
@@ -76,12 +77,7 @@ function TicketModal({ person, onClose }: any) {
                     <div className="absolute top-[-10px] right-[-10px] w-5 h-5 bg-[#1e293b] rounded-full"></div>
                     <div className="border-b-2 border-dashed border-slate-200 absolute top-0 left-4 right-4"></div>
                     <div className="text-center space-y-4 pt-4">
-                        <div className="flex justify-center my-4">
-                             <div className="p-2 border-2 border-slate-900 rounded-lg">
-                                 {/* CORRECT COMPONENT USAGE: QRCodeSVG */}
-                                 <QRCodeSVG value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="M" />
-                             </div>
-                        </div>
+                        <div className="flex justify-center my-4"><div className="p-2 border-2 border-slate-900 rounded-lg"><QRCodeSVG value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="M" /></div></div>
                         <div><h3 className="text-xl font-bold text-slate-900 leading-tight">{person.full_name}</h3><p className="text-xs text-slate-500 uppercase tracking-widest mt-1">Camper</p></div>
                         <div className="flex justify-center gap-4"><div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Group</p><p className="text-2xl font-black text-indigo-600">{person.grace_school || '?'}</p></div><div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Receipt</p><p className="text-xl font-mono font-bold text-slate-700">#{person.receipt_no}</p></div></div>
                         <div className="border-t border-slate-100 pt-4"><div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200"><CheckCircle className="w-4 h-4"/> PAID IN FULL</div></div>
@@ -108,13 +104,56 @@ function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: any) {
     );
 }
 
-// --- MANAGER MODAL ---
+// --- UPDATED: MANAGER MODAL WITH STAFF AUDIT ---
 function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, supabase }: any) {
     const [pin, setPin] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [deletedUsers, setDeletedUsers] = useState<any[]>([]);
-    useEffect(() => { if(isAuthenticated) { supabase.from('participants').select('*').eq('is_deleted', true).order('created_at', {ascending: false}).then(({data}: any) => setDeletedUsers(data || [])); } }, [isAuthenticated, supabase]);
+    const [staffStats, setStaffStats] = useState<any[]>([]); // NEW
+    const [activeTab, setActiveTab] = useState('desk'); // 'desk' | 'staff'
+
+    useEffect(() => {
+        if(isAuthenticated) {
+            // Fetch Deleted Users
+            supabase.from('participants').select('*').eq('is_deleted', true).order('created_at', {ascending: false})
+            .then(({data}: any) => setDeletedUsers(data || []));
+
+            // NEW: Fetch and Calculate Staff Stats
+            calculateStaffStats();
+        }
+    }, [isAuthenticated, supabase]);
+
+    async function calculateStaffStats() {
+        const today = new Date().toISOString().split('T')[0];
+        const { data } = await supabase.from('audit_logs').select('*').gte('created_at', today);
+        
+        if (!data) return;
+
+        const stats: Record<string, { actions: number, cashCollected: number, momoCollected: number }> = {};
+
+        data.forEach((log: any) => {
+            const email = log.staff_email || 'Unknown';
+            if (!stats[email]) stats[email] = { actions: 0, cashCollected: 0, momoCollected: 0 };
+            
+            stats[email].actions++;
+            
+            // Check if log is a payment and extract amount
+            if (log.action_type === 'Payment Received') {
+                const amountMatch = log.details.match(/₵\s*(\d+)/);
+                if (amountMatch) {
+                    const amount = parseInt(amountMatch[1], 10);
+                    if (log.details.includes('Cash')) stats[email].cashCollected += amount;
+                    if (log.details.includes('MoMo')) stats[email].momoCollected += amount;
+                }
+            }
+        });
+
+        // Convert to array
+        setStaffStats(Object.entries(stats).map(([email, stat]) => ({ email, ...stat })));
+    }
+
     if (!isOpen) return null;
+
     if (!isAuthenticated) {
         return (
             <ModalBackdrop onClose={onClose}>
@@ -126,11 +165,52 @@ function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, su
     }
     return (
         <ModalBackdrop onClose={onClose}>
-            <div className="bg-[#1e293b] w-full max-w-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
-                <div className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-900/50 to-indigo-900/50 flex justify-between items-center"><div><h2 className="text-xl font-bold text-white">Manager Hub</h2><p className="text-indigo-200 text-xs">Operational Controls</p></div><button type="button" onClick={onClose}><X className="w-6 h-6 text-slate-400 hover:text-white"/></button></div>
+            <div className="bg-[#1e293b] w-full max-w-3xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
+                <div className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-900/50 to-indigo-900/50 flex justify-between items-center">
+                    <div><h2 className="text-xl font-bold text-white">Manager Hub</h2><p className="text-indigo-200 text-xs">Operational Controls</p></div>
+                    <button type="button" onClick={onClose}><X className="w-6 h-6 text-slate-400 hover:text-white"/></button>
+                </div>
+                
+                {/* TABS */}
+                <div className="flex border-b border-white/5 p-1 bg-black/20">
+                    <button onClick={() => setActiveTab('desk')} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'desk' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-white'}`}>Desk & Users</button>
+                    <button onClick={() => setActiveTab('staff')} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'staff' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-white'}`}>👮 Staff Audit</button>
+                </div>
+
                 <div className="p-6 overflow-y-auto custom-scrollbar space-y-8">
-                    <div className="bg-white/5 border border-white/5 rounded-2xl p-5 flex items-center justify-between"><div><h3 className="text-sm font-bold text-white">Desk Status</h3><p className={`text-xs mt-1 font-bold ${deskLocked ? 'text-red-400' : 'text-emerald-400'}`}>{deskLocked ? '🔴 LOCKED (Read Only)' : '🟢 ACTIVE (Registration Open)'}</p></div><button type="button" onClick={onToggleLock} className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${deskLocked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-red-600 text-white hover:bg-red-500'}`}>{deskLocked ? <><Unlock className="w-4 h-4"/> Unlock Desk</> : <><Lock className="w-4 h-4"/> Lock Desk</>}</button></div>
-                    <div><h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Trash2 className="w-4 h-4"/> Trash Bin (Soft Deleted)</h3><div className="space-y-2">{deletedUsers.length === 0 ? <p className="text-slate-500 text-xs italic">Trash bin is empty.</p> : deletedUsers.map(u => (<div key={u.id} className="flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5"><div><p className="text-white text-sm font-bold">{u.full_name}</p><p className="text-xs text-slate-500">{u.phone_number} • ₵{u.amount_paid}</p></div><button type="button" onClick={() => { onRestore(u.id); setDeletedUsers(prev => prev.filter(x => x.id !== u.id)); }} className="bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1"><RefreshCw className="w-3 h-3"/> Restore</button></div>))}</div></div>
+                    
+                    {/* --- DESK TAB --- */}
+                    {activeTab === 'desk' && (
+                        <>
+                           <div className="bg-white/5 border border-white/5 rounded-2xl p-5 flex items-center justify-between"><div><h3 className="text-sm font-bold text-white">Desk Status</h3><p className={`text-xs mt-1 font-bold ${deskLocked ? 'text-red-400' : 'text-emerald-400'}`}>{deskLocked ? '🔴 LOCKED (Read Only)' : '🟢 ACTIVE (Registration Open)'}</p></div><button type="button" onClick={onToggleLock} className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${deskLocked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-red-600 text-white hover:bg-red-500'}`}>{deskLocked ? <><Unlock className="w-4 h-4"/> Unlock Desk</> : <><Lock className="w-4 h-4"/> Lock Desk</>}</button></div>
+                           <div><h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Trash2 className="w-4 h-4"/> Trash Bin (Soft Deleted)</h3><div className="space-y-2">{deletedUsers.length === 0 ? <p className="text-slate-500 text-xs italic">Trash bin is empty.</p> : deletedUsers.map(u => (<div key={u.id} className="flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5"><div><p className="text-white text-sm font-bold">{u.full_name}</p><p className="text-xs text-slate-500">{u.phone_number} • ₵{u.amount_paid}</p></div><button type="button" onClick={() => { onRestore(u.id); setDeletedUsers(prev => prev.filter(x => x.id !== u.id)); }} className="bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1"><RefreshCw className="w-3 h-3"/> Restore</button></div>))}</div></div>
+                        </>
+                    )}
+
+                    {/* --- STAFF TAB (NEW) --- */}
+                    {activeTab === 'staff' && (
+                        <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><Briefcase className="w-4 h-4"/> Staff Performance (Today)</h3>
+                                <button onClick={calculateStaffStats} className="text-indigo-400 text-xs font-bold hover:text-white"><RefreshCw className="w-3 h-3 inline"/> Refresh</button>
+                            </div>
+                            <div className="space-y-3">
+                                {staffStats.length === 0 ? <p className="text-slate-500 text-xs italic">No activity recorded today.</p> :
+                                staffStats.map((s, i) => (
+                                    <div key={i} className="bg-black/20 border border-white/5 rounded-xl p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                                        <div className="flex items-center gap-3 w-full md:w-auto">
+                                            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-white border border-white/10">{s.email.charAt(0).toUpperCase()}</div>
+                                            <div><p className="text-sm font-bold text-white truncate max-w-[150px]">{s.email}</p><p className="text-xs text-slate-500">{s.actions} total actions</p></div>
+                                        </div>
+                                        <div className="flex gap-4 w-full md:w-auto justify-between md:justify-end">
+                                            <div className="text-right"><p className="text-[10px] uppercase text-emerald-500 font-bold">Cash Collected</p><p className="text-lg font-mono font-bold text-white">₵{s.cashCollected}</p></div>
+                                            <div className="text-right"><p className="text-[10px] uppercase text-blue-500 font-bold">MoMo Collected</p><p className="text-lg font-mono font-bold text-white">₵{s.momoCollected}</p></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </ModalBackdrop>
@@ -573,81 +653,7 @@ export default function Home() {
         <header className="sticky top-0 z-50 bg-[#0f172a]/80 backdrop-blur-lg border-b border-white/5 px-4 py-3 flex justify-between items-center mt-2">
             <div className="flex items-center gap-3"><div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/20">A</div><div><h1 className="font-bold text-lg leading-none">AMOG <span className="text-indigo-400">2026</span></h1><div className="flex items-center gap-2 mt-0.5"><p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Help Desk</p>{deskLocked && <span className="bg-red-500/20 border border-red-500/50 text-red-300 text-[9px] px-1.5 rounded uppercase font-bold animate-pulse">LOCKED</span>}</div></div></div>
             <div className="flex gap-2">
-                <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md px-3 py-2 rounded-xl border border-purple-500/30 text-center cursor-pointer hover:bg-purple-900/60 transition-all flex items-center gap-2 mr-2"><span className="text-[10px] uppercase text-purple-300 font-bold tracking-wider">Today: </span><span className="text-sm font-bold text-white">₵{todaysTotal}</span></div>
-                <button type="button" onClick={() => setShowManager(true)} className="bg-indigo-600/20 hover:bg-indigo-600/40 p-2.5 rounded-xl text-indigo-300 hover:text-white transition-all border border-indigo-500/30"><Lock className="w-5 h-5"/></button>
-                <button type="button" onClick={() => supabase.auth.signOut()} className="bg-white/5 hover:bg-white/10 p-2.5 rounded-xl text-slate-400 hover:text-red-400 transition-all border border-white/5"><LogOut className="w-5 h-5"/></button>
+                <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md px-3 py-2 rounded-xl border border-purple-500/30 text-center cursor-pointer hover:bg-purple">
+                </div>
             </div>
         </header>
-
-        <main className="relative z-10 max-w-7xl mx-auto px-4 pt-6 space-y-6">
-            {toast && <Toast {...toast} onClose={() => setToast(null)} />}
-            <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar snap-x">
-                <div className="snap-start min-w-[140px] bg-gradient-to-br from-indigo-600 to-violet-700 p-4 rounded-2xl shadow-lg shadow-indigo-900/20 flex flex-col justify-between"><Users className="w-6 h-6 text-white/80 mb-2"/><div><p className="text-xs text-indigo-100 font-medium">In Camp</p><p className="text-2xl font-bold text-white">{stats.checkedIn}</p></div></div>
-                <div className="snap-start min-w-[140px] bg-emerald-900/40 border border-emerald-500/20 p-4 rounded-2xl flex flex-col justify-between"><Coins className="w-6 h-6 text-emerald-400 mb-2"/><div><p className="text-xs text-emerald-400/80 font-medium">Cash</p><p className="text-2xl font-bold text-white font-mono">₵{stats.cash}</p></div></div>
-                <div className="snap-start min-w-[140px] bg-blue-900/40 border border-blue-500/20 p-4 rounded-2xl flex flex-col justify-between"><CreditCard className="w-6 h-6 text-blue-400 mb-2"/><div><p className="text-xs text-blue-400/80 font-medium">MoMo</p><p className="text-2xl font-bold text-white font-mono">₵{stats.momo}</p></div></div>
-                {stats.groups.map(g => (<div key={g.name} className="snap-start min-w-[100px] bg-white/5 border border-white/5 p-4 rounded-2xl flex flex-col justify-center items-center text-center"><p className="text-[10px] text-slate-400 font-bold uppercase">{g.name.replace('Group ', 'Grp ')}</p><p className="text-xl font-bold text-white mt-1">{g.count}</p></div>))}
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 relative group"><Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors"/><input type="text" placeholder="Search campers..." value={search} onChange={e => setSearch(e.target.value)} className="w-full bg-white/5 hover:bg-white/10 focus:bg-black/40 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-white outline-none focus:border-indigo-500/50 transition-all"/></div>
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                     <button type="button" onClick={() => !deskLocked ? setIsRegistering(true) : showToast("Desk Locked", "error")} className={`px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all active:scale-95 ${deskLocked ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20'}`}><Plus className="w-5 h-5"/> New Camper</button>
-                     <button type="button" onClick={downloadCSV} className="bg-emerald-600/20 hover:bg-emerald-600/40 px-4 py-3 rounded-2xl text-emerald-300 font-bold border border-emerald-500/30 flex items-center gap-2"><Download className="w-5 h-5"/></button>
-                     <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="bg-white/5 border border-white/10 text-slate-300 rounded-2xl px-4 py-3 outline-none focus:border-indigo-500 appearance-none"><option value="">All Branches</option>{CHURCH_BRANCHES.map(b => <option key={b} className="bg-slate-900">{b}</option>)}</select>
-                </div>
-            </div>
-
-            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">{['all', 'owing', 'paid', 'checked_in'].map(f => (<button type="button" key={f} onClick={() => setFilter(f)} className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider border transition-all whitespace-nowrap ${filter === f ? 'bg-white text-slate-900 border-white' : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500'}`}>{f.replace('_', ' ')}</button>))}</div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filtered.map(p => {
-                    const balance = REG_FEE - (p.amount_paid || 0); const isOwing = balance > 0; const isCheckedIn = p.checked_in;
-                    return (
-                        <div key={p.id} onClick={() => setReportPerson(p)} className="bg-white/5 backdrop-blur-md border border-white/5 rounded-3xl p-5 hover:bg-white/10 hover:border-white/10 transition-all cursor-pointer group active:scale-[0.98]">
-                            <div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-lg text-white leading-tight">{p.full_name}</h3><p className="text-xs text-slate-400 mt-1">{p.branch} • {p.role}</p></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${isCheckedIn ? 'bg-indigo-500/20 text-indigo-400' : (isOwing ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400')}`}>{isCheckedIn ? <CheckCircle className="w-4 h-4"/> : (isOwing ? <AlertCircle className="w-4 h-4"/> : <CheckCircle className="w-4 h-4"/>)}</div></div>
-                            <div className="mb-4">{isCheckedIn ? (<div className="bg-indigo-900/20 border border-indigo-500/20 rounded-xl p-3 text-center"><p className="text-[10px] uppercase text-indigo-300 font-bold tracking-widest">Admitted To</p><p className="text-xl font-bold text-white">{p.grace_school}</p></div>) : (<div className="flex items-baseline gap-1"><span className="text-2xl font-bold text-white font-mono">₵{p.amount_paid}</span><span className="text-xs text-slate-500 font-medium">/ ₵{REG_FEE}</span>{isOwing && <span className="ml-auto text-[10px] font-bold bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">OWING ₵{balance}</span>}</div>)}<p className="text-[9px] text-slate-600 font-mono mt-2 text-right">RCPT-{p.receipt_no}</p></div>
-                            <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                                <button type="button" onClick={() => { if(!deskLocked) { setSelectedPerson(p); setModalMode('payment'); } else showToast("Desk Locked", "error") }} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border border-white/5 transition-colors flex items-center justify-center gap-2 ${deskLocked ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-white/5 hover:bg-white/10 text-slate-200'}`}><Coins className="w-3 h-3"/> Pay</button>
-                                {!isCheckedIn && (<button type="button" onClick={() => { if(!deskLocked) { setSelectedPerson(p); setModalMode('checkin'); } else showToast("Desk Locked", "error") }} disabled={isOwing} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${isOwing || deskLocked ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}><LogOut className="w-3 h-3 rotate-180"/> Admit</button>)}
-                                
-                                {/* NEW: Ticket Button - Only shows if Paid */}
-                                {!isOwing && (
-                                    <button type="button" onClick={() => setTicketPerson(p)} className="px-3 bg-indigo-600/20 hover:bg-indigo-600 hover:text-white text-indigo-300 rounded-xl transition-all border border-indigo-500/30"><Ticket className="w-4 h-4"/></button>
-                                )}
-                                
-                                <button type="button" onClick={() => initiateDelete(p)} className="px-3 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-slate-500 rounded-xl transition-all border border-white/5"><Trash2 className="w-4 h-4"/></button>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </main>
-
-        <ManagerModal isOpen={showManager} onClose={() => setShowManager(false)} deskLocked={deskLocked} onToggleLock={handleToggleLock} onRestore={handleRestoreUser} supabase={supabase} />
-        <RegistrationModal isOpen={isRegistering} onClose={() => setIsRegistering(false)} onRegister={handleRegister} processing={processing} isOffline={!isOnline} />
-        {reportPerson && <UserReportModal person={reportPerson} onClose={() => setReportPerson(null)} onUpdate={fetchPeople} supabase={supabase} />}
-        {showDailyAuditModal && <DailyAuditModal dailyAudit={dailyAudit} todaysTotal={todaysTotal} onClose={() => setShowDailyAuditModal(false)} />}
-        
-        {/* NEW: Ticket Modal */}
-        {ticketPerson && <TicketModal person={ticketPerson} onClose={() => setTicketPerson(null)} />}
-        
-        {selectedPerson && (
-            <ModalBackdrop onClose={() => setSelectedPerson(null)}>
-                <div className="bg-[#1e293b] w-full max-w-sm rounded-3xl border border-white/10 p-6 animate-in zoom-in-95">
-                    <h3 className="text-lg font-bold text-white mb-4">{modalMode === 'payment' ? 'Record Payment' : 'Check-In Confirmation'}</h3>
-                    <div className="bg-white/5 rounded-xl p-4 mb-4"><p className="text-xs text-slate-400">Camper</p><p className="text-white font-bold">{selectedPerson.full_name}</p><p className="text-xs text-slate-400 mt-2">Current Status</p><p className={`font-mono ${selectedPerson.amount_paid >= REG_FEE ? 'text-emerald-400' : 'text-amber-400'}`}>₵{selectedPerson.amount_paid} Paid</p></div>
-                    {modalMode === 'payment' ? (
-                        <div className="space-y-3">
-                            <div><label className="text-xs text-slate-400 block mb-1">Top-up Amount</label><input type="number" min="0" onKeyDown={(e) => {if (["-", "e", "E", "+"].includes(e.key)) {e.preventDefault();}}} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white text-lg font-mono focus:border-indigo-500 outline-none" autoFocus value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} /></div>
-                            <div><label className="text-xs text-slate-400 block mb-1">Method</label><select className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}><option>Cash</option><option>MoMo</option></select></div>
-                            {paymentMethod === 'MoMo' && (<div className="animate-in slide-in-from-top-2"><label className="text-xs text-amber-400 block mb-1 font-bold">Transaction Reference ID *</label><input type="text" placeholder="e.g. 5567800021" className="w-full bg-amber-900/20 border border-amber-500/50 rounded-xl p-3 text-white text-sm focus:border-amber-400 outline-none" value={momoTransId} onChange={e => setMomoTransId(e.target.value)} /></div>)}
-                            <button onClick={handlePayment} disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-2">{processing ? 'Processing...' : 'Confirm Payment'}</button>
-                        </div>
-                    ) : (<button onClick={handleAdmit} disabled={processing} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl">{processing ? 'Checking In...' : 'Confirm Admission'}</button>)}
-                    <button type="button" onClick={() => setSelectedPerson(null)} className="w-full py-3 text-slate-500 font-bold text-xs mt-2 hover:text-white">Cancel</button>
-                </div>
-            </ModalBackdrop>
-        )}
-    </div>
-  );
-}
