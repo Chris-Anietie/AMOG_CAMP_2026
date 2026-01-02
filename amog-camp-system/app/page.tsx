@@ -40,6 +40,8 @@ const Download = ({ className }: any) => <IconWrapper className={className}><pat
 const Ticket = ({ className }: any) => <IconWrapper className={className}><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></IconWrapper>;
 const WifiOff = ({ className }: any) => <IconWrapper className={className}><line x1="1" x2="23" y1="1" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" x2="12.01" y1="20" y2="20"/></IconWrapper>;
 const Briefcase = ({ className }: any) => <IconWrapper className={className}><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></IconWrapper>;
+const Tool = ({ className }: any) => <IconWrapper className={className}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></IconWrapper>;
+const Undo = ({ className }: any) => <IconWrapper className={className}><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></IconWrapper>;
 
 // --- COMPONENT: MODAL BACKDROP ---
 const ModalBackdrop = ({ children, onClose }: { children: React.ReactNode, onClose: () => void }) => (
@@ -58,7 +60,7 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
-// --- TICKET MODAL ---
+// --- TICKET MODAL WITH QR CODE ---
 function TicketModal({ person, onClose }: any) {
     if (!person) return null;
     const qrData = `OFFICIAL GATE PASS\nName: ${person.full_name}\nGroup: ${person.grace_school || 'Not Assigned'}\nReceipt: #${person.receipt_no}\nSTATUS: PAID ✅`;
@@ -103,13 +105,16 @@ function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: any) {
     );
 }
 
-// --- MANAGER MODAL ---
+// --- UPDATED: MANAGER MODAL WITH FIX TOOLS ---
 function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, supabase }: any) {
     const [pin, setPin] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [deletedUsers, setDeletedUsers] = useState<any[]>([]);
     const [staffStats, setStaffStats] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState('desk');
+    // NEW: Search for Fixer
+    const [fixSearch, setFixSearch] = useState('');
+    const [fixResults, setFixResults] = useState<any[]>([]);
 
     useEffect(() => {
         if(isAuthenticated) {
@@ -118,6 +123,32 @@ function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, su
             calculateStaffStats();
         }
     }, [isAuthenticated, supabase]);
+
+    // NEW: Search Logic for Fixer
+    useEffect(() => {
+        if(fixSearch.length > 2 && isAuthenticated) {
+             supabase.from('participants').select('*').ilike('full_name', `%${fixSearch}%`).limit(5)
+             .then(({data}: any) => setFixResults(data || []));
+        } else {
+            setFixResults([]);
+        }
+    }, [fixSearch, isAuthenticated]);
+
+    async function handleUnCheckIn(id: any) {
+        if(!confirm("Warning: This will remove them from their room. Continue?")) return;
+        await supabase.from('participants').update({ checked_in: false, grace_school: null }).eq('id', id);
+        alert("User Un-Checked In.");
+        setFixSearch(''); // Clear to refresh
+    }
+
+    async function handleFixPayment(id: any) {
+        const newAmount = prompt("Enter CORRECT total amount paid (Digits only):");
+        if(newAmount) {
+            await supabase.from('participants').update({ amount_paid: parseInt(newAmount) }).eq('id', id);
+            alert("Balance Updated.");
+            setFixSearch(''); 
+        }
+    }
 
     async function calculateStaffStats() {
         const today = new Date().toISOString().split('T')[0];
@@ -153,18 +184,29 @@ function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, su
     return (
         <ModalBackdrop onClose={onClose}>
             <div className="bg-[#1e293b] w-full max-w-3xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
-                <div className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-900/50 to-indigo-900/50 flex justify-between items-center"><div><h2 className="text-xl font-bold text-white">Manager Hub</h2><p className="text-indigo-200 text-xs">Operational Controls</p></div><button type="button" onClick={onClose}><X className="w-6 h-6 text-slate-400 hover:text-white"/></button></div>
+                <div className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-900/50 to-indigo-900/50 flex justify-between items-center">
+                    <div><h2 className="text-xl font-bold text-white">Manager Hub</h2><p className="text-indigo-200 text-xs">Operational Controls</p></div>
+                    <button type="button" onClick={onClose}><X className="w-6 h-6 text-slate-400 hover:text-white"/></button>
+                </div>
+                
+                {/* TABS */}
                 <div className="flex border-b border-white/5 p-1 bg-black/20">
                     <button onClick={() => setActiveTab('desk')} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'desk' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-white'}`}>Desk & Users</button>
                     <button onClick={() => setActiveTab('staff')} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'staff' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-white'}`}>👮 Staff Audit</button>
+                    <button onClick={() => setActiveTab('fix')} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'fix' ? 'bg-amber-600 text-white' : 'text-slate-500 hover:text-white'}`}>🛠️ Fix Mistakes</button>
                 </div>
+
                 <div className="p-6 overflow-y-auto custom-scrollbar space-y-8">
+                    
+                    {/* --- DESK TAB --- */}
                     {activeTab === 'desk' && (
                         <>
                            <div className="bg-white/5 border border-white/5 rounded-2xl p-5 flex items-center justify-between"><div><h3 className="text-sm font-bold text-white">Desk Status</h3><p className={`text-xs mt-1 font-bold ${deskLocked ? 'text-red-400' : 'text-emerald-400'}`}>{deskLocked ? '🔴 LOCKED (Read Only)' : '🟢 ACTIVE (Registration Open)'}</p></div><button type="button" onClick={onToggleLock} className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${deskLocked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-red-600 text-white hover:bg-red-500'}`}>{deskLocked ? <><Unlock className="w-4 h-4"/> Unlock Desk</> : <><Lock className="w-4 h-4"/> Lock Desk</>}</button></div>
                            <div><h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Trash2 className="w-4 h-4"/> Trash Bin (Soft Deleted)</h3><div className="space-y-2">{deletedUsers.length === 0 ? <p className="text-slate-500 text-xs italic">Trash bin is empty.</p> : deletedUsers.map(u => (<div key={u.id} className="flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5"><div><p className="text-white text-sm font-bold">{u.full_name}</p><p className="text-xs text-slate-500">{u.phone_number} • ₵{u.amount_paid}</p></div><button type="button" onClick={() => { onRestore(u.id); setDeletedUsers(prev => prev.filter(x => x.id !== u.id)); }} className="bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1"><RefreshCw className="w-3 h-3"/> Restore</button></div>))}</div></div>
                         </>
                     )}
+
+                    {/* --- STAFF TAB --- */}
                     {activeTab === 'staff' && (
                         <div>
                             <div className="flex justify-between items-center mb-4"><h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><Briefcase className="w-4 h-4"/> Staff Performance (Today)</h3><button onClick={calculateStaffStats} className="text-indigo-400 text-xs font-bold hover:text-white"><RefreshCw className="w-3 h-3 inline"/> Refresh</button></div>
@@ -178,6 +220,31 @@ function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, su
                             </div>
                         </div>
                     )}
+
+                    {/* --- FIX TAB (NEW) --- */}
+                    {activeTab === 'fix' && (
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2"><Tool className="w-4 h-4"/> Emergency Fixes</h3>
+                            <input type="text" placeholder="Search user to fix..." value={fixSearch} onChange={e => setFixSearch(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500 transition-all"/>
+                            
+                            <div className="space-y-2">
+                                {fixResults.map(p => (
+                                    <div key={p.id} className="bg-amber-900/10 border border-amber-500/20 rounded-xl p-3 flex justify-between items-center">
+                                        <div><p className="text-white font-bold text-sm">{p.full_name}</p><p className="text-xs text-slate-500">Paid: ₵{p.amount_paid} • {p.checked_in ? `Checked In (${p.grace_school})` : 'Not Checked In'}</p></div>
+                                        <div className="flex gap-2">
+                                            {p.checked_in && <button onClick={() => handleUnCheckIn(p.id)} className="bg-red-500/20 hover:bg-red-500/40 text-red-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30 flex items-center gap-1"><Undo className="w-3 h-3"/> Un-Admit</button>}
+                                            <button onClick={() => handleFixPayment(p.id)} className="bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-amber-500/30">Edit $$</button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {fixSearch && fixResults.length === 0 && <p className="text-slate-500 text-xs italic">No users found.</p>}
+                            </div>
+                            <div className="bg-amber-500/5 p-3 rounded-xl border border-amber-500/10 text-[10px] text-amber-200/60 mt-4">
+                                ⚠️ Use these tools carefully. Un-Admitting a user removes them from their room count. Editing payments changes financial records.
+                            </div>
+                        </div>
+                    )}
+
                 </div>
             </div>
         </ModalBackdrop>
@@ -192,7 +259,12 @@ function RegistrationModal({ isOpen, onClose, onRegister, processing, isOffline 
     <ModalBackdrop onClose={onClose}>
       <div className="bg-[#1e293b] w-full max-w-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
         <div className="p-6 border-b border-white/10 bg-white/5 flex justify-between items-center">
-            <div><h2 className="text-xl font-bold text-white tracking-tight">New Registration</h2>{isOffline && <p className="text-amber-400 text-xs font-bold flex items-center gap-1 mt-1"><WifiOff className="w-3 h-3"/> OFFLINE MODE - Saving to device</p>}{!isOffline && <p className="text-indigo-300 text-xs font-medium">Add a new camper to the database</p>}</div>
+            <div>
+                <h2 className="text-xl font-bold text-white tracking-tight">New Registration</h2>
+                {/* Visual Feedback for Offline Mode */}
+                {isOffline && <p className="text-amber-400 text-xs font-bold flex items-center gap-1 mt-1"><WifiOff className="w-3 h-3"/> OFFLINE MODE - Saving to device</p>}
+                {!isOffline && <p className="text-indigo-300 text-xs font-medium">Add a new camper to the database</p>}
+            </div>
             <button type="button" onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
         </div>
         <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
@@ -224,7 +296,7 @@ function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
                     {activeTab === 'details' ? (
                         <div className="space-y-6">
                             <div className="grid grid-cols-2 gap-3"><div className="bg-black/20 rounded-xl p-3 border border-white/5"><p className="text-[10px] uppercase text-slate-500 font-bold">Total Paid</p><p className="text-xl font-mono font-bold text-white">₵{person.amount_paid}</p></div><div className="bg-black/20 rounded-xl p-3 border border-white/5"><p className="text-[10px] uppercase text-slate-500 font-bold">Group</p><p className="text-lg font-bold text-indigo-300">{person.grace_school || 'N/A'}</p></div></div>
-                            {isEditing ? (<div className="space-y-4 animate-in fade-in"><div><label className="text-xs text-slate-400 block mb-1">Full Name</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.full_name} onChange={e => setEditData({...editData, full_name: e.target.value})} /></div><div><label className="text-xs text-slate-400 block mb-1">Phone</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.phone_number} onChange={e => setEditData({...editData, phone_number: e.target.value})} /></div><div><label className="text-xs text-slate-400 block mb-1">Branch</label><select className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.branch} onChange={e => setEditData({...editData, branch: e.target.value})}><option value="">Select Branch</option>{CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}</select></div><button onClick={handleSave} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl mt-2">Save Changes</button></div>) : (<div className="bg-white/5 rounded-xl border border-white/5 p-4 space-y-3"><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Branch</span><span className="text-white text-sm">{person.branch}</span></div><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Role</span><span className="text-white text-sm">{person.role}</span></div><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Gender</span><span className="text-white text-sm">{person.gender || 'N/A'}</span></div><div className="flex justify-between"><span className="text-slate-400 text-sm">Status</span><span className={`text-sm font-bold ${balance <= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{balance <= 0 ? 'PAID' : 'OWING'}</span></div><button type="button" onClick={() => setIsEditing(true)} className="w-full mt-4 py-2 border border-white/10 hover:bg-white/5 text-indigo-300 text-xs font-bold uppercase rounded-lg transition-all">Edit Profile</button></div>)}
+                            {isEditing ? (<div className="space-y-4 animate-in fade-in"><div><label className="text-xs text-slate-400 block mb-1">Full Name</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.full_name} onChange={e => setEditData({...editData, full_name: e.target.value})} /></div><div><label className="text-xs text-slate-400 block mb-1">Phone</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.phone_number} onChange={e => setEditData({...editData, phone_number: e.target.value})} /></div><button onClick={handleSave} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl mt-2">Save Changes</button></div>) : (<div className="bg-white/5 rounded-xl border border-white/5 p-4 space-y-3"><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Branch</span><span className="text-white text-sm">{person.branch}</span></div><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Role</span><span className="text-white text-sm">{person.role}</span></div><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Gender</span><span className="text-white text-sm">{person.gender || 'N/A'}</span></div><div className="flex justify-between"><span className="text-slate-400 text-sm">Status</span><span className={`text-sm font-bold ${balance <= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{balance <= 0 ? 'PAID' : 'OWING'}</span></div><button type="button" onClick={() => setIsEditing(true)} className="w-full mt-4 py-2 border border-white/10 hover:bg-white/5 text-indigo-300 text-xs font-bold uppercase rounded-lg transition-all">Edit Profile</button></div>)}
                         </div>
                     ) : (
                         <div className="space-y-4">{loadingLogs ? <p className="text-center text-slate-500 text-xs">Loading logs...</p> : logs.length === 0 ? <p className="text-center text-slate-500 text-xs italic">No activity recorded.</p> : logs.map((log, i) => (<div key={i} className="relative pl-6 pb-2 border-l border-white/10 last:border-0"><div className="absolute left-[-5px] top-0 w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-lg shadow-indigo-500/50"></div><p className="text-white text-sm font-medium">{log.action_type}</p><p className="text-slate-400 text-xs mt-1 leading-relaxed">{log.details}</p><p className="text-[10px] text-indigo-400/50 mt-1">{log.staff_email} • {new Date(log.created_at).toLocaleDateString()}</p></div>))}</div>
@@ -539,18 +611,7 @@ export default function Home() {
   }
 
   const stats = useMemo(() => ({ checkedIn: people.filter(p => p.checked_in).length, cash: people.reduce((s, p) => s + (p.cash_amount || 0), 0), momo: people.reduce((s, p) => s + (p.momo_amount || 0), 0), groups: GRACE_SCHOOLS.map(g => ({ name: g, count: people.filter(p => p.grace_school === g).length })) }), [people]);
-  const filtered = people.filter(p => { 
-      // FIXED: Added robust check for null/undefined fields
-      const matchSearch = (p.full_name || '').toLowerCase().includes(search.toLowerCase()) || (p.phone_number || '').includes(search); 
-      // FIXED: Case-insensitive Branch Filter + Trim to handle " Guest " vs "Guest"
-      const matchBranch = branchFilter ? (p.branch || '').toLowerCase().trim() === branchFilter.toLowerCase().trim() : true; 
-      
-      let matchFilter = true; 
-      if(filter === 'paid') matchFilter = p.amount_paid >= REG_FEE; 
-      if(filter === 'owing') matchFilter = p.amount_paid < REG_FEE; 
-      if(filter === 'checked_in') matchFilter = p.checked_in; 
-      return matchSearch && matchBranch && matchFilter; 
-  });
+  const filtered = people.filter(p => { const matchSearch = p.full_name.toLowerCase().includes(search.toLowerCase()) || p.phone_number.includes(search); const matchBranch = branchFilter ? p.branch === branchFilter : true; let matchFilter = true; if(filter === 'paid') matchFilter = p.amount_paid >= REG_FEE; if(filter === 'owing') matchFilter = p.amount_paid < REG_FEE; if(filter === 'checked_in') matchFilter = p.checked_in; return matchSearch && matchBranch && matchFilter; });
 
   if (!session) return (
 <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 relative overflow-hidden font-sans">
@@ -646,7 +707,6 @@ export default function Home() {
                 <div className="flex gap-2 overflow-x-auto pb-1">
                      <button type="button" onClick={() => !deskLocked ? setIsRegistering(true) : showToast("Desk Locked", "error")} className={`px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all active:scale-95 ${deskLocked ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20'}`}><Plus className="w-5 h-5"/> New Camper</button>
                      <button type="button" onClick={downloadCSV} className="bg-emerald-600/20 hover:bg-emerald-600/40 px-4 py-3 rounded-2xl text-emerald-300 font-bold border border-emerald-500/30 flex items-center gap-2"><Download className="w-5 h-5"/></button>
-                     {/* FIXED: Added value={b} to option to fix filtering issues */}
                      <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="bg-white/5 border border-white/10 text-slate-300 rounded-2xl px-4 py-3 outline-none focus:border-indigo-500 appearance-none"><option value="">All Branches</option>{CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}</select>
                 </div>
             </div>
