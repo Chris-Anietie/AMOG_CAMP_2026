@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import QRCode from "qrcode.react"; 
+import QRCode from "react-qr-code"; 
 
 // --- CONFIGURATION ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -200,265 +200,265 @@ function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
 
 // --- MAIN PAGE ---
 export default function Home() {
-  const [session, setSession] = useState<any>(null);
-  const [people, setPeople] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
-  const [branchFilter, setBranchFilter] = useState('');
-  const [isOnline, setIsOnline] = useState(true);
-  const [deskLocked, setDeskLocked] = useState(false);
-  const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); 
-  const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 }); 
-  const [todaysTotal, setTodaysTotal] = useState(0); 
-  
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [showManager, setShowManager] = useState(false);
-  const [ticketPerson, setTicketPerson] = useState<any>(null); // NEW: Ticket Modal
-  const [reportPerson, setReportPerson] = useState<any>(null);
-  const [selectedPerson, setSelectedPerson] = useState<any>(null);
-  const [modalMode, setModalMode] = useState<'payment' | 'checkin'>('payment');
-  
-  const [topUpAmount, setTopUpAmount] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState('Cash');
-  const [momoTransId, setMomoTransId] = useState('');
-  const [processing, setProcessing] = useState(false);
-  const [toast, setToast] = useState<{msg: string, type: 'success' | 'error' | 'warning'} | null>(null);
+  const [session, setSession] = useState<any>(null);
+  const [people, setPeople] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [branchFilter, setBranchFilter] = useState('');
+  const [isOnline, setIsOnline] = useState(true);
+  
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [showManager, setShowManager] = useState(false);
+  const [ticketPerson, setTicketPerson] = useState<any>(null); // NEW: Ticket Modal
+  const [reportPerson, setReportPerson] = useState<any>(null);
+  const [selectedPerson, setSelectedPerson] = useState<any>(null);
+  const [modalMode, setModalMode] = useState<'payment' | 'checkin'>('payment');
+  
+  const [topUpAmount, setTopUpAmount] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [momoTransId, setMomoTransId] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [toast, setToast] = useState<{msg: string, type: 'success' | 'error' | 'warning'} | null>(null);
+  const [deskLocked, setDeskLocked] = useState(false);
+  const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); 
+  const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 }); 
+  const [todaysTotal, setTodaysTotal] = useState(0); 
 
-  useEffect(() => {
-    setIsOnline(navigator.onLine);
-    window.addEventListener('online', () => setIsOnline(true));
-    window.addEventListener('offline', () => setIsOnline(false));
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    window.addEventListener('online', () => setIsOnline(true));
+    window.addEventListener('offline', () => setIsOnline(false));
 
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
-    supabase.auth.onAuthStateChange((_event, session) => setSession(session));
-    fetchPeople();
-    fetchDeskConfig();
-    calculateTodaysTotal();
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    fetchPeople();
+    fetchDeskConfig();
+    calculateTodaysTotal();
 
-    const channel = supabase.channel('realtime_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'participants' }, () => { fetchPeople(); calculateTodaysTotal(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'desk_config' }, () => { fetchDeskConfig(); })
-      .subscribe();
+    const channel = supabase.channel('realtime_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'participants' }, () => { fetchPeople(); calculateTodaysTotal(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'desk_config' }, () => { fetchDeskConfig(); })
+      .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, []);
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
-  async function fetchPeople() {
-     if(!supabaseUrl) return;
-     const { data } = await supabase.from('participants').select('*').eq('is_deleted', false).order('full_name');
-     setPeople(data || []);
-  }
+  async function fetchPeople() {
+     if(!supabaseUrl) return;
+     const { data } = await supabase.from('participants').select('*').eq('is_deleted', false).order('full_name');
+     setPeople(data || []);
+  }
 
-  async function fetchDeskConfig() {
-      const { data } = await supabase.from('desk_config').select('is_locked').eq('id', 1).single();
-      if(data) setDeskLocked(data.is_locked);
-  }
+  async function fetchDeskConfig() {
+      const { data } = await supabase.from('desk_config').select('is_locked').eq('id', 1).single();
+      if(data) setDeskLocked(data.is_locked);
+  }
 
-  async function calculateTodaysTotal() {
-    const today = new Date().toISOString().split('T')[0];
-    const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
-    let sum = 0;
-    if (data) {
-        data.forEach(log => {
-            const match = log.details.match(/₵\s*(\d+)/);
-            if (match && match[1]) sum += parseInt(match[1], 10);
-        });
-    }
-    setTodaysTotal(sum);
-  }
+  async function calculateTodaysTotal() {
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
+    let sum = 0;
+    if (data) {
+        data.forEach(log => {
+            const match = log.details.match(/₵\s*(\d+)/);
+            if (match && match[1]) sum += parseInt(match[1], 10);
+        });
+    }
+    setTodaysTotal(sum);
+  }
 
-  async function runDailyAudit() {
-    const today = new Date().toISOString().split('T')[0];
-    const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
-    let cashSum = 0, momoSum = 0, paymentCount = 0;
-    if (data) {
-        data.forEach(log => {
-            const amountMatch = log.details.match(/₵\s*(\d+)/);
-            if (amountMatch && amountMatch[1]) {
-                const amount = parseInt(amountMatch[1], 10);
-                paymentCount++;
-                if (log.details.toLowerCase().includes('cash')) cashSum += amount;
-                else if (log.details.toLowerCase().includes('momo')) momoSum += amount;
-            }
-        });
-    }
-    setTodaysTotal(cashSum + momoSum);
-    setDailyAudit({ cash: cashSum, momo: momoSum, count: paymentCount });
-    setShowDailyAuditModal(true);
-  }
+  async function runDailyAudit() {
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
+    let cashSum = 0, momoSum = 0, paymentCount = 0;
+    if (data) {
+        data.forEach(log => {
+            const amountMatch = log.details.match(/₵\s*(\d+)/);
+            if (amountMatch && amountMatch[1]) {
+                const amount = parseInt(amountMatch[1], 10);
+                paymentCount++;
+                if (log.details.toLowerCase().includes('cash')) cashSum += amount;
+                else if (log.details.toLowerCase().includes('momo')) momoSum += amount;
+            }
+        });
+    }
+    setTodaysTotal(cashSum + momoSum);
+    setDailyAudit({ cash: cashSum, momo: momoSum, count: paymentCount });
+    setShowDailyAuditModal(true);
+  }
 
-  const downloadCSV = () => {
-    const headers = ['Full Name', 'Role', 'Branch', 'Phone', 'Status', 'Total Paid', 'Cash Paid', 'MoMo Paid', 'T-Shirt', 'School', 'Receipt No'];
-    const csvRows = [headers.join(',')];
-    people.forEach(p => {
-      const total = (p.cash_amount || 0) + (p.momo_amount || 0);
-      const row = [`"${p.full_name}"`, p.role, p.branch, `"${p.phone_number}"`, p.payment_status, total, p.cash_amount, p.momo_amount, p.t_shirt || '-', p.grace_school || '-', p.receipt_no || '-'];
-      csvRows.push(row.join(','));
-    });
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `AMOG_DATA_${new Date().toLocaleDateString()}.csv`; a.click();
-    showToast("Exported Data Successfully", "success");
-  };
+  const downloadCSV = () => {
+    const headers = ['Full Name', 'Role', 'Branch', 'Phone', 'Status', 'Total Paid', 'Cash Paid', 'MoMo Paid', 'T-Shirt', 'School', 'Receipt No'];
+    const csvRows = [headers.join(',')];
+    people.forEach(p => {
+      const total = (p.cash_amount || 0) + (p.momo_amount || 0);
+      const row = [`"${p.full_name}"`, p.role, p.branch, `"${p.phone_number}"`, p.payment_status, total, p.cash_amount, p.momo_amount, p.t_shirt || '-', p.grace_school || '-', p.receipt_no || '-'];
+      csvRows.push(row.join(','));
+    });
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `AMOG_DATA_${new Date().toLocaleDateString()}.csv`; a.click();
+    showToast("Exported Data Successfully", "success");
+  };
 
-  const showToast = (msg: string, type: 'success' | 'error' | 'warning') => setToast({ msg, type });
+  const showToast = (msg: string, type: 'success' | 'error' | 'warning') => setToast({ msg, type });
 
-  async function logAction(action: string, details: string) {
-    if (!session?.user?.email) return;
-    await supabase.from('audit_logs').insert([{ staff_email: session.user.email, action_type: action, details }]);
-  }
+  async function logAction(action: string, details: string) {
+    if (!session?.user?.email) return;
+    await supabase.from('audit_logs').insert([{ staff_email: session.user.email, action_type: action, details }]);
+  }
 
-  async function handleToggleLock() {
-      const newStatus = !deskLocked;
-      const { error } = await supabase.from('desk_config').update({ is_locked: newStatus }).eq('id', 1);
-      if(error) showToast("Failed to toggle lock", "error");
-      else { setDeskLocked(newStatus); logAction("Desk Config", `Manager changed desk lock to: ${newStatus}`); showToast(`Desk ${newStatus ? 'LOCKED 🔴' : 'UNLOCKED 🟢'}`, "success"); }
-  }
+  async function handleToggleLock() {
+      const newStatus = !deskLocked;
+      const { error } = await supabase.from('desk_config').update({ is_locked: newStatus }).eq('id', 1);
+      if(error) showToast("Failed to toggle lock", "error");
+      else { setDeskLocked(newStatus); logAction("Desk Config", `Manager changed desk lock to: ${newStatus}`); showToast(`Desk ${newStatus ? 'LOCKED 🔴' : 'UNLOCKED 🟢'}`, "success"); }
+  }
 
-  async function handleRestoreUser(id: number) {
-      const { error } = await supabase.from('participants').update({ is_deleted: false }).eq('id', id);
-      if(error) showToast("Restore failed", "error"); else { showToast("User Restored", "success"); logAction("Restore", `Restored user ID: ${id}`); fetchPeople(); }
-  }
+  async function handleRestoreUser(id: number) {
+      const { error } = await supabase.from('participants').update({ is_deleted: false }).eq('id', id);
+      if(error) showToast("Restore failed", "error"); else { showToast("User Restored", "success"); logAction("Restore", `Restored user ID: ${id}`); fetchPeople(); }
+  }
 
-  async function initiateDelete(person: any) {
-    if(deskLocked) return showToast("Desk is LOCKED. Cannot delete.", "error");
-    if (!confirm(`Are you sure you want to delete ${person.full_name}?`)) return;
-    await logAction('Soft Delete', `Staff deleted user: ${person.full_name}. Data preserved in DB.`);
-    const { error } = await supabase.from('participants').update({ is_deleted: true }).eq('id', person.id);
-    if(error) showToast("Delete failed", "error"); else showToast("User removed from view", "success");
-  }
+  async function initiateDelete(person: any) {
+    if(deskLocked) return showToast("Desk is LOCKED. Cannot delete.", "error");
+    if (!confirm(`Are you sure you want to delete ${person.full_name}?`)) return;
+    await logAction('Soft Delete', `Staff deleted user: ${person.full_name}. Data preserved in DB.`);
+    const { error } = await supabase.from('participants').update({ is_deleted: true }).eq('id', person.id);
+    if(error) showToast("Delete failed", "error"); else showToast("User removed from view", "success");
+  }
 
-  async function handleRegister(data: any) {
-    if(deskLocked) return showToast("Desk is LOCKED.", "error");
-    if(!isOnline) return showToast("Offline mode.", "error");
-    if(data.phone_number.length < 10) return showToast("Invalid Phone", "error");
-    setProcessing(true);
-    const exists = people.find(p => p.phone_number === data.phone_number);
-    if(exists) { setProcessing(false); return showToast("User already exists!", "error"); }
-    const finalTShirt = data.wants_tshirt ? `${data.t_shirt} (${data.t_shirt_color})` : null;
-    const { error } = await supabase.from('participants').insert([{ full_name: data.full_name, phone_number: data.phone_number, role: data.role, branch: data.branch, t_shirt: finalTShirt, payment_status: 'Pending', amount_paid: 0, cash_amount: 0, momo_amount: 0, checked_in: false, gender: data.gender, created_at: new Date().toISOString() }]);
-    if(error) showToast(error.message, "error"); else { await logAction('New Registration', `Registered: ${data.full_name} (${data.phone_number})`); showToast("Registration Successful!", "success"); setIsRegistering(false); }
-    setProcessing(false);
-  }
+  async function handleRegister(data: any) {
+    if(deskLocked) return showToast("Desk is LOCKED.", "error");
+    if(!isOnline) return showToast("Offline mode.", "error");
+    if(data.phone_number.length < 10) return showToast("Invalid Phone", "error");
+    setProcessing(true);
+    const exists = people.find(p => p.phone_number === data.phone_number);
+    if(exists) { setProcessing(false); return showToast("User already exists!", "error"); }
+    const finalTShirt = data.wants_tshirt ? `${data.t_shirt} (${data.t_shirt_color})` : null;
+    const { error } = await supabase.from('participants').insert([{ full_name: data.full_name, phone_number: data.phone_number, role: data.role, branch: data.branch, t_shirt: finalTShirt, payment_status: 'Pending', amount_paid: 0, cash_amount: 0, momo_amount: 0, checked_in: false, gender: data.gender, created_at: new Date().toISOString() }]);
+    if(error) showToast(error.message, "error"); else { await logAction('New Registration', `Registered: ${data.full_name} (${data.phone_number})`); showToast("Registration Successful!", "success"); setIsRegistering(false); }
+    setProcessing(false);
+  }
 
-  async function handlePayment() {
-      if(deskLocked) return showToast("Desk is LOCKED.", "error");
-      const amount = parseFloat(topUpAmount);
-      if(!amount || amount <= 0) return showToast("Enter a valid positive amount", "warning");
-      if(paymentMethod === 'MoMo' && momoTransId.length < 5) return showToast("Enter a valid Transaction ID", "error");
-      setProcessing(true);
-      const currentCash = selectedPerson.cash_amount || 0; const currentMoMo = selectedPerson.momo_amount || 0;
-      let newCash = currentCash, newMoMo = currentMoMo;
-      if(paymentMethod === 'Cash') newCash += amount; else newMoMo += amount;
-      const total = newCash + newMoMo;
-      const status = total >= REG_FEE ? 'Paid' : 'Partial';
-      const updateData: any = { amount_paid: total, cash_amount: newCash, momo_amount: newMoMo, payment_status: status };
-      if(paymentMethod === 'MoMo') updateData.momo_transaction_id = momoTransId;
-      const { error } = await supabase.from('participants').update(updateData).eq('id', selectedPerson.id);
-      if(error) showToast("Payment failed", "error"); else { await logAction('Payment Received', `Payment for ${selectedPerson.full_name}: Recorded ₵${amount} via ${paymentMethod}. MoMoID: ${momoTransId || 'N/A'}`); showToast("Payment Recorded", "success"); setSelectedPerson(null); setMomoTransId(''); }
-      setProcessing(false);
-  }
+  async function handlePayment() {
+      if(deskLocked) return showToast("Desk is LOCKED.", "error");
+      const amount = parseFloat(topUpAmount);
+      if(!amount || amount <= 0) return showToast("Enter a valid positive amount", "warning");
+      if(paymentMethod === 'MoMo' && momoTransId.length < 5) return showToast("Enter a valid Transaction ID", "error");
+      setProcessing(true);
+      const currentCash = selectedPerson.cash_amount || 0; const currentMoMo = selectedPerson.momo_amount || 0;
+      let newCash = currentCash, newMoMo = currentMoMo;
+      if(paymentMethod === 'Cash') newCash += amount; else newMoMo += amount;
+      const total = newCash + newMoMo;
+      const status = total >= REG_FEE ? 'Paid' : 'Partial';
+      const updateData: any = { amount_paid: total, cash_amount: newCash, momo_amount: newMoMo, payment_status: status };
+      if(paymentMethod === 'MoMo') updateData.momo_transaction_id = momoTransId;
+      const { error } = await supabase.from('participants').update(updateData).eq('id', selectedPerson.id);
+      if(error) showToast("Payment failed", "error"); else { await logAction('Payment Received', `Payment for ${selectedPerson.full_name}: Recorded ₵${amount} via ${paymentMethod}. MoMoID: ${momoTransId || 'N/A'}`); showToast("Payment Recorded", "success"); setSelectedPerson(null); setMomoTransId(''); }
+      setProcessing(false);
+  }
 
-  async function handleAdmit() {
-      if(deskLocked) return showToast("Desk is LOCKED.", "error");
-      if(selectedPerson.amount_paid < REG_FEE) return showToast("Payment Incomplete", "error");
-      setProcessing(true);
-      let targetGroups = GRACE_SCHOOLS; 
-      if(selectedPerson.gender === 'Male') targetGroups = MALE_GROUPS; else if(selectedPerson.gender === 'Female') targetGroups = FEMALE_GROUPS;
-      const randomSchool = targetGroups[Math.floor(Math.random() * targetGroups.length)];
-      const { error } = await supabase.from('participants').update({ checked_in: true, checked_in_at: new Date().toISOString(), checked_in_by: session?.user?.email, grace_school: randomSchool }).eq('id', selectedPerson.id);
-      if(error) showToast("Check-in failed", "error"); else { await logAction('Check-In', `User ${selectedPerson.full_name} admitted to ${randomSchool}`); const msg = `Welcome to AMOG 2026!%0A%0A*Name:* ${selectedPerson.full_name}%0A*Group:* ${randomSchool}%0A*Receipt:* ${selectedPerson.receipt_no}%0A*Status:* Admitted ✅`; window.open(`https://wa.me/233${selectedPerson.phone_number.substring(1)}?text=${msg}`, '_blank'); showToast(`Admitted to ${randomSchool}`, "success"); setSelectedPerson(null); }
-      setProcessing(false);
-  }
+  async function handleAdmit() {
+      if(deskLocked) return showToast("Desk is LOCKED.", "error");
+      if(selectedPerson.amount_paid < REG_FEE) return showToast("Payment Incomplete", "error");
+      setProcessing(true);
+      let targetGroups = GRACE_SCHOOLS; 
+      if(selectedPerson.gender === 'Male') targetGroups = MALE_GROUPS; else if(selectedPerson.gender === 'Female') targetGroups = FEMALE_GROUPS;
+      const randomSchool = targetGroups[Math.floor(Math.random() * targetGroups.length)];
+      const { error } = await supabase.from('participants').update({ checked_in: true, checked_in_at: new Date().toISOString(), checked_in_by: session?.user?.email, grace_school: randomSchool }).eq('id', selectedPerson.id);
+      if(error) showToast("Check-in failed", "error"); else { await logAction('Check-In', `User ${selectedPerson.full_name} admitted to ${randomSchool}`); const msg = `Welcome to AMOG 2026!%0A%0A*Name:* ${selectedPerson.full_name}%0A*Group:* ${randomSchool}%0A*Receipt:* ${selectedPerson.receipt_no}%0A*Status:* Admitted ✅`; window.open(`https://wa.me/233${selectedPerson.phone_number.substring(1)}?text=${msg}`, '_blank'); showToast(`Admitted to ${randomSchool}`, "success"); setSelectedPerson(null); }
+      setProcessing(false);
+  }
 
-  const stats = useMemo(() => ({ checkedIn: people.filter(p => p.checked_in).length, cash: people.reduce((s, p) => s + (p.cash_amount || 0), 0), momo: people.reduce((s, p) => s + (p.momo_amount || 0), 0), groups: GRACE_SCHOOLS.map(g => ({ name: g, count: people.filter(p => p.grace_school === g).length })) }), [people]);
-  const filtered = people.filter(p => { const matchSearch = p.full_name.toLowerCase().includes(search.toLowerCase()) || p.phone_number.includes(search); const matchBranch = branchFilter ? p.branch === branchFilter : true; let matchFilter = true; if(filter === 'paid') matchFilter = p.amount_paid >= REG_FEE; if(filter === 'owing') matchFilter = p.amount_paid < REG_FEE; if(filter === 'checked_in') matchFilter = p.checked_in; return matchSearch && matchBranch && matchFilter; });
+  const stats = useMemo(() => ({ checkedIn: people.filter(p => p.checked_in).length, cash: people.reduce((s, p) => s + (p.cash_amount || 0), 0), momo: people.reduce((s, p) => s + (p.momo_amount || 0), 0), groups: GRACE_SCHOOLS.map(g => ({ name: g, count: people.filter(p => p.grace_school === g).length })) }), [people]);
+  const filtered = people.filter(p => { const matchSearch = p.full_name.toLowerCase().includes(search.toLowerCase()) || p.phone_number.includes(search); const matchBranch = branchFilter ? p.branch === branchFilter : true; let matchFilter = true; if(filter === 'paid') matchFilter = p.amount_paid >= REG_FEE; if(filter === 'owing') matchFilter = p.amount_paid < REG_FEE; if(filter === 'checked_in') matchFilter = p.checked_in; return matchSearch && matchBranch && matchFilter; });
 
-  if (!session) return (
-    <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 relative overflow-hidden font-sans"><div className="absolute inset-0 z-0"><img src="/camp-bg.png" onError={(e) => e.currentTarget.src = "https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=2070&auto=format&fit=crop"} className="w-full h-full object-cover opacity-30" alt="Background" /></div><div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl w-full max-w-sm shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-500"><div className="text-center mb-8"><h1 className="text-4xl font-black text-white tracking-tighter">AMOG <span className="text-indigo-500">2026</span></h1><p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-2">Camp Staff Portal</p></div><form onSubmit={async (e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); const { error } = await supabase.auth.signInWithPassword({ email: fd.get('email') as string, password: fd.get('password') as string }); if(error) showToast('Invalid Credentials', 'error'); }} className="space-y-4"><input name="email" type="email" placeholder="Admin Email" className="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition-all" required /><input name="password" type="password" placeholder="••••••••" className="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition-all" required /><button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-900/30 transition-all">Access Dashboard</button></form></div>{toast && <Toast {...toast} onClose={() => setToast(null)} />}</div>
-  );
+  if (!session) return (
+    <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 relative overflow-hidden font-sans"><div className="absolute inset-0 z-0"><img src="/camp-bg.png" onError={(e) => e.currentTarget.src = "https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=2070&auto=format&fit=crop"} className="w-full h-full object-cover opacity-30" alt="Background" /></div><div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl w-full max-w-sm shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-500"><div className="text-center mb-8"><h1 className="text-4xl font-black text-white tracking-tighter">AMOG <span className="text-indigo-500">2026</span></h1><p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-2">Camp Staff Portal</p></div><form onSubmit={async (e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); const { error } = await supabase.auth.signInWithPassword({ email: fd.get('email') as string, password: fd.get('password') as string }); if(error) showToast('Invalid Credentials', 'error'); }} className="space-y-4"><input name="email" type="email" placeholder="Admin Email" className="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition-all" required /><input name="password" type="password" placeholder="••••••••" className="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition-all" required /><button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-900/30 transition-all">Access Dashboard</button></form></div>{toast && <Toast {...toast} onClose={() => setToast(null)} />}</div>
+  );
 
-  return (
-    <div className="min-h-screen bg-[#0f172a] text-slate-100 font-sans pb-20 relative overflow-x-hidden">
-        <div className="fixed inset-0 pointer-events-none z-0"><img src="/camp-bg.png" onError={(e) => e.currentTarget.src = "https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?q=80&w=2070&auto=format&fit=crop"} className="absolute inset-0 w-full h-full object-cover opacity-20" alt="Camp Background" /><div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-900/80 to-[#0f172a]"></div><div className="absolute top-0 left-0 right-0 h-[500px] bg-indigo-600/10 blur-[120px] rounded-full mix-blend-screen"></div></div>
-        <header className="sticky top-0 z-50 bg-[#0f172a]/80 backdrop-blur-lg border-b border-white/5 px-4 py-3 flex justify-between items-center">
-            <div className="flex items-center gap-3"><div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/20">A</div><div><h1 className="font-bold text-lg leading-none">AMOG <span className="text-indigo-400">2026</span></h1><div className="flex items-center gap-2 mt-0.5"><p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Help Desk</p>{deskLocked && <span className="bg-red-500/20 border border-red-500/50 text-red-300 text-[9px] px-1.5 rounded uppercase font-bold animate-pulse">LOCKED</span>}</div></div></div>
-            <div className="flex gap-2">
-                <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md px-3 py-2 rounded-xl border border-purple-500/30 text-center cursor-pointer hover:bg-purple-900/60 transition-all flex items-center gap-2 mr-2"><span className="text-[10px] uppercase text-purple-300 font-bold tracking-wider">Today: </span><span className="text-sm font-bold text-white">₵{todaysTotal}</span></div>
-                <button type="button" onClick={() => setShowManager(true)} className="bg-indigo-600/20 hover:bg-indigo-600/40 p-2.5 rounded-xl text-indigo-300 hover:text-white transition-all border border-indigo-500/30"><Lock className="w-5 h-5"/></button>
-                <button type="button" onClick={() => supabase.auth.signOut()} className="bg-white/5 hover:bg-white/10 p-2.5 rounded-xl text-slate-400 hover:text-red-400 transition-all border border-white/5"><LogOut className="w-5 h-5"/></button>
-            </div>
-        </header>
+  return (
+    <div className="min-h-screen bg-[#0f172a] text-slate-100 font-sans pb-20 relative overflow-x-hidden">
+        <div className="fixed inset-0 pointer-events-none z-0"><img src="/camp-bg.png" onError={(e) => e.currentTarget.src = "https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?q=80&w=2070&auto=format&fit=crop"} className="absolute inset-0 w-full h-full object-cover opacity-20" alt="Camp Background" /><div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-900/80 to-[#0f172a]"></div><div className="absolute top-0 left-0 right-0 h-[500px] bg-indigo-600/10 blur-[120px] rounded-full mix-blend-screen"></div></div>
+        <header className="sticky top-0 z-50 bg-[#0f172a]/80 backdrop-blur-lg border-b border-white/5 px-4 py-3 flex justify-between items-center">
+            <div className="flex items-center gap-3"><div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/20">A</div><div><h1 className="font-bold text-lg leading-none">AMOG <span className="text-indigo-400">2026</span></h1><div className="flex items-center gap-2 mt-0.5"><p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Help Desk</p>{deskLocked && <span className="bg-red-500/20 border border-red-500/50 text-red-300 text-[9px] px-1.5 rounded uppercase font-bold animate-pulse">LOCKED</span>}</div></div></div>
+            <div className="flex gap-2">
+                <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md px-3 py-2 rounded-xl border border-purple-500/30 text-center cursor-pointer hover:bg-purple-900/60 transition-all flex items-center gap-2 mr-2"><span className="text-[10px] uppercase text-purple-300 font-bold tracking-wider">Today: </span><span className="text-sm font-bold text-white">₵{todaysTotal}</span></div>
+                <button type="button" onClick={() => setShowManager(true)} className="bg-indigo-600/20 hover:bg-indigo-600/40 p-2.5 rounded-xl text-indigo-300 hover:text-white transition-all border border-indigo-500/30"><Lock className="w-5 h-5"/></button>
+                <button type="button" onClick={() => supabase.auth.signOut()} className="bg-white/5 hover:bg-white/10 p-2.5 rounded-xl text-slate-400 hover:text-red-400 transition-all border border-white/5"><LogOut className="w-5 h-5"/></button>
+            </div>
+        </header>
 
-        <main className="relative z-10 max-w-7xl mx-auto px-4 pt-6 space-y-6">
-            {toast && <Toast {...toast} onClose={() => setToast(null)} />}
-            <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar snap-x">
-                <div className="snap-start min-w-[140px] bg-gradient-to-br from-indigo-600 to-violet-700 p-4 rounded-2xl shadow-lg shadow-indigo-900/20 flex flex-col justify-between"><Users className="w-6 h-6 text-white/80 mb-2"/><div><p className="text-xs text-indigo-100 font-medium">In Camp</p><p className="text-2xl font-bold text-white">{stats.checkedIn}</p></div></div>
-                <div className="snap-start min-w-[140px] bg-emerald-900/40 border border-emerald-500/20 p-4 rounded-2xl flex flex-col justify-between"><Coins className="w-6 h-6 text-emerald-400 mb-2"/><div><p className="text-xs text-emerald-400/80 font-medium">Cash</p><p className="text-2xl font-bold text-white font-mono">₵{stats.cash}</p></div></div>
-                <div className="snap-start min-w-[140px] bg-blue-900/40 border border-blue-500/20 p-4 rounded-2xl flex flex-col justify-between"><CreditCard className="w-6 h-6 text-blue-400 mb-2"/><div><p className="text-xs text-blue-400/80 font-medium">MoMo</p><p className="text-2xl font-bold text-white font-mono">₵{stats.momo}</p></div></div>
-                {stats.groups.map(g => (<div key={g.name} className="snap-start min-w-[100px] bg-white/5 border border-white/5 p-4 rounded-2xl flex flex-col justify-center items-center text-center"><p className="text-[10px] text-slate-400 font-bold uppercase">{g.name.replace('Group ', 'Grp ')}</p><p className="text-xl font-bold text-white mt-1">{g.count}</p></div>))}
-            </div>
+        <main className="relative z-10 max-w-7xl mx-auto px-4 pt-6 space-y-6">
+            {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+            <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar snap-x">
+                <div className="snap-start min-w-[140px] bg-gradient-to-br from-indigo-600 to-violet-700 p-4 rounded-2xl shadow-lg shadow-indigo-900/20 flex flex-col justify-between"><Users className="w-6 h-6 text-white/80 mb-2"/><div><p className="text-xs text-indigo-100 font-medium">In Camp</p><p className="text-2xl font-bold text-white">{stats.checkedIn}</p></div></div>
+                <div className="snap-start min-w-[140px] bg-emerald-900/40 border border-emerald-500/20 p-4 rounded-2xl flex flex-col justify-between"><Coins className="w-6 h-6 text-emerald-400 mb-2"/><div><p className="text-xs text-emerald-400/80 font-medium">Cash</p><p className="text-2xl font-bold text-white font-mono">₵{stats.cash}</p></div></div>
+                <div className="snap-start min-w-[140px] bg-blue-900/40 border border-blue-500/20 p-4 rounded-2xl flex flex-col justify-between"><CreditCard className="w-6 h-6 text-blue-400 mb-2"/><div><p className="text-xs text-blue-400/80 font-medium">MoMo</p><p className="text-2xl font-bold text-white font-mono">₵{stats.momo}</p></div></div>
+                {stats.groups.map(g => (<div key={g.name} className="snap-start min-w-[100px] bg-white/5 border border-white/5 p-4 rounded-2xl flex flex-col justify-center items-center text-center"><p className="text-[10px] text-slate-400 font-bold uppercase">{g.name.replace('Group ', 'Grp ')}</p><p className="text-xl font-bold text-white mt-1">{g.count}</p></div>))}
+            </div>
 
-            <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 relative group"><Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors"/><input type="text" placeholder="Search campers..." value={search} onChange={e => setSearch(e.target.value)} className="w-full bg-white/5 hover:bg-white/10 focus:bg-black/40 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-white outline-none focus:border-indigo-500/50 transition-all"/></div>
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                     <button type="button" onClick={() => !deskLocked ? setIsRegistering(true) : showToast("Desk Locked", "error")} className={`px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all active:scale-95 ${deskLocked ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20'}`}><Plus className="w-5 h-5"/> New Camper</button>
-                     <button type="button" onClick={downloadCSV} className="bg-emerald-600/20 hover:bg-emerald-600/40 px-4 py-3 rounded-2xl text-emerald-300 font-bold border border-emerald-500/30 flex items-center gap-2"><Download className="w-5 h-5"/></button>
-                     <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="bg-white/5 border border-white/10 text-slate-300 rounded-2xl px-4 py-3 outline-none focus:border-indigo-500 appearance-none"><option value="">All Branches</option>{CHURCH_BRANCHES.map(b => <option key={b} className="bg-slate-900">{b}</option>)}</select>
-                </div>
-            </div>
+            <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 relative group"><Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors"/><input type="text" placeholder="Search campers..." value={search} onChange={e => setSearch(e.target.value)} className="w-full bg-white/5 hover:bg-white/10 focus:bg-black/40 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-white outline-none focus:border-indigo-500/50 transition-all"/></div>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                     <button type="button" onClick={() => !deskLocked ? setIsRegistering(true) : showToast("Desk Locked", "error")} className={`px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all active:scale-95 ${deskLocked ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20'}`}><Plus className="w-5 h-5"/> New Camper</button>
+                     <button type="button" onClick={downloadCSV} className="bg-emerald-600/20 hover:bg-emerald-600/40 px-4 py-3 rounded-2xl text-emerald-300 font-bold border border-emerald-500/30 flex items-center gap-2"><Download className="w-5 h-5"/></button>
+                     <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="bg-white/5 border border-white/10 text-slate-300 rounded-2xl px-4 py-3 outline-none focus:border-indigo-500 appearance-none"><option value="">All Branches</option>{CHURCH_BRANCHES.map(b => <option key={b} className="bg-slate-900">{b}</option>)}</select>
+                </div>
+            </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">{['all', 'owing', 'paid', 'checked_in'].map(f => (<button type="button" key={f} onClick={() => setFilter(f)} className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider border transition-all whitespace-nowrap ${filter === f ? 'bg-white text-slate-900 border-white' : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500'}`}>{f.replace('_', ' ')}</button>))}</div>
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">{['all', 'owing', 'paid', 'checked_in'].map(f => (<button type="button" key={f} onClick={() => setFilter(f)} className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider border transition-all whitespace-nowrap ${filter === f ? 'bg-white text-slate-900 border-white' : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500'}`}>{f.replace('_', ' ')}</button>))}</div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filtered.map(p => {
-                    const balance = REG_FEE - (p.amount_paid || 0); const isOwing = balance > 0; const isCheckedIn = p.checked_in;
-                    return (
-                        <div key={p.id} onClick={() => setReportPerson(p)} className="bg-white/5 backdrop-blur-md border border-white/5 rounded-3xl p-5 hover:bg-white/10 hover:border-white/10 transition-all cursor-pointer group active:scale-[0.98]">
-                            <div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-lg text-white leading-tight">{p.full_name}</h3><p className="text-xs text-slate-400 mt-1">{p.branch} • {p.role}</p></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${isCheckedIn ? 'bg-indigo-500/20 text-indigo-400' : (isOwing ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400')}`}>{isCheckedIn ? <CheckCircle className="w-4 h-4"/> : (isOwing ? <AlertCircle className="w-4 h-4"/> : <CheckCircle className="w-4 h-4"/>)}</div></div>
-                            <div className="mb-4">{isCheckedIn ? (<div className="bg-indigo-900/20 border border-indigo-500/20 rounded-xl p-3 text-center"><p className="text-[10px] uppercase text-indigo-300 font-bold tracking-widest">Admitted To</p><p className="text-xl font-bold text-white">{p.grace_school}</p></div>) : (<div className="flex items-baseline gap-1"><span className="text-2xl font-bold text-white font-mono">₵{p.amount_paid}</span><span className="text-xs text-slate-500 font-medium">/ ₵{REG_FEE}</span>{isOwing && <span className="ml-auto text-[10px] font-bold bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">OWING ₵{balance}</span>}</div>)}<p className="text-[9px] text-slate-600 font-mono mt-2 text-right">RCPT-{p.receipt_no}</p></div>
-                            <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                                <button type="button" onClick={() => { if(!deskLocked) { setSelectedPerson(p); setModalMode('payment'); } else showToast("Desk Locked", "error") }} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border border-white/5 transition-colors flex items-center justify-center gap-2 ${deskLocked ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-white/5 hover:bg-white/10 text-slate-200'}`}><Coins className="w-3 h-3"/> Pay</button>
-                                {!isCheckedIn && (<button type="button" onClick={() => { if(!deskLocked) { setSelectedPerson(p); setModalMode('checkin'); } else showToast("Desk Locked", "error") }} disabled={isOwing} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${isOwing || deskLocked ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}><LogOut className="w-3 h-3 rotate-180"/> Admit</button>)}
-                                
-                                {/* NEW: Ticket Button - Only shows if Paid */}
-                                {!isOwing && (
-                                    <button type="button" onClick={() => setTicketPerson(p)} className="px-3 bg-indigo-600/20 hover:bg-indigo-600 hover:text-white text-indigo-300 rounded-xl transition-all border border-indigo-500/30"><Ticket className="w-4 h-4"/></button>
-                                )}
-                                
-                                <button type="button" onClick={() => initiateDelete(p)} className="px-3 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-slate-500 rounded-xl transition-all border border-white/5"><Trash2 className="w-4 h-4"/></button>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </main>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filtered.map(p => {
+                    const balance = REG_FEE - (p.amount_paid || 0); const isOwing = balance > 0; const isCheckedIn = p.checked_in;
+                    return (
+                        <div key={p.id} onClick={() => setReportPerson(p)} className="bg-white/5 backdrop-blur-md border border-white/5 rounded-3xl p-5 hover:bg-white/10 hover:border-white/10 transition-all cursor-pointer group active:scale-[0.98]">
+                            <div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-lg text-white leading-tight">{p.full_name}</h3><p className="text-xs text-slate-400 mt-1">{p.branch} • {p.role}</p></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${isCheckedIn ? 'bg-indigo-500/20 text-indigo-400' : (isOwing ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400')}`}>{isCheckedIn ? <CheckCircle className="w-4 h-4"/> : (isOwing ? <AlertCircle className="w-4 h-4"/> : <CheckCircle className="w-4 h-4"/>)}</div></div>
+                            <div className="mb-4">{isCheckedIn ? (<div className="bg-indigo-900/20 border border-indigo-500/20 rounded-xl p-3 text-center"><p className="text-[10px] uppercase text-indigo-300 font-bold tracking-widest">Admitted To</p><p className="text-xl font-bold text-white">{p.grace_school}</p></div>) : (<div className="flex items-baseline gap-1"><span className="text-2xl font-bold text-white font-mono">₵{p.amount_paid}</span><span className="text-xs text-slate-500 font-medium">/ ₵{REG_FEE}</span>{isOwing && <span className="ml-auto text-[10px] font-bold bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">OWING ₵{balance}</span>}</div>)}<p className="text-[9px] text-slate-600 font-mono mt-2 text-right">RCPT-{p.receipt_no}</p></div>
+                            <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                                <button type="button" onClick={() => { if(!deskLocked) { setSelectedPerson(p); setModalMode('payment'); } else showToast("Desk Locked", "error") }} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border border-white/5 transition-colors flex items-center justify-center gap-2 ${deskLocked ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-white/5 hover:bg-white/10 text-slate-200'}`}><Coins className="w-3 h-3"/> Pay</button>
+                                {!isCheckedIn && (<button type="button" onClick={() => { if(!deskLocked) { setSelectedPerson(p); setModalMode('checkin'); } else showToast("Desk Locked", "error") }} disabled={isOwing} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${isOwing || deskLocked ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}><LogOut className="w-3 h-3 rotate-180"/> Admit</button>)}
+                                
+                                {/* NEW: Ticket Button - Only shows if Paid */}
+                                {!isOwing && (
+                                    <button type="button" onClick={() => setTicketPerson(p)} className="px-3 bg-indigo-600/20 hover:bg-indigo-600 hover:text-white text-indigo-300 rounded-xl transition-all border border-indigo-500/30"><Ticket className="w-4 h-4"/></button>
+                                )}
+                                
+                                <button type="button" onClick={() => initiateDelete(p)} className="px-3 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-slate-500 rounded-xl transition-all border border-white/5"><Trash2 className="w-4 h-4"/></button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </main>
 
-        <ManagerModal isOpen={showManager} onClose={() => setShowManager(false)} deskLocked={deskLocked} onToggleLock={handleToggleLock} onRestore={handleRestoreUser} supabase={supabase} />
-        <RegistrationModal isOpen={isRegistering} onClose={() => setIsRegistering(false)} onRegister={handleRegister} processing={processing} />
-        {reportPerson && <UserReportModal person={reportPerson} onClose={() => setReportPerson(null)} onUpdate={fetchPeople} supabase={supabase} />}
-        {showDailyAuditModal && <DailyAuditModal dailyAudit={dailyAudit} todaysTotal={todaysTotal} onClose={() => setShowDailyAuditModal(false)} />}
-        
-        {/* NEW: Ticket Modal */}
-        {ticketPerson && <TicketModal person={ticketPerson} onClose={() => setTicketPerson(null)} />}
-        
-        {selectedPerson && (
-            <ModalBackdrop onClose={() => setSelectedPerson(null)}>
-                <div className="bg-[#1e293b] w-full max-w-sm rounded-3xl border border-white/10 p-6 animate-in zoom-in-95">
-                    <h3 className="text-lg font-bold text-white mb-4">{modalMode === 'payment' ? 'Record Payment' : 'Check-In Confirmation'}</h3>
-                    <div className="bg-white/5 rounded-xl p-4 mb-4"><p className="text-xs text-slate-400">Camper</p><p className="text-white font-bold">{selectedPerson.full_name}</p><p className="text-xs text-slate-400 mt-2">Current Status</p><p className={`font-mono ${selectedPerson.amount_paid >= REG_FEE ? 'text-emerald-400' : 'text-amber-400'}`}>₵{selectedPerson.amount_paid} Paid</p></div>
-                    {modalMode === 'payment' ? (
-                        <div className="space-y-3">
-                            <div><label className="text-xs text-slate-400 block mb-1">Top-up Amount</label><input type="number" min="0" onKeyDown={(e) => {if (["-", "e", "E", "+"].includes(e.key)) {e.preventDefault();}}} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white text-lg font-mono focus:border-indigo-500 outline-none" autoFocus value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} /></div>
-                            <div><label className="text-xs text-slate-400 block mb-1">Method</label><select className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}><option>Cash</option><option>MoMo</option></select></div>
-                            {paymentMethod === 'MoMo' && (<div className="animate-in slide-in-from-top-2"><label className="text-xs text-amber-400 block mb-1 font-bold">Transaction Reference ID *</label><input type="text" placeholder="e.g. 5567800021" className="w-full bg-amber-900/20 border border-amber-500/50 rounded-xl p-3 text-white text-sm focus:border-amber-400 outline-none" value={momoTransId} onChange={e => setMomoTransId(e.target.value)} /></div>)}
-                            <button onClick={handlePayment} disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-2">{processing ? 'Processing...' : 'Confirm Payment'}</button>
-                        </div>
-                    ) : (<button onClick={handleAdmit} disabled={processing} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl">{processing ? 'Checking In...' : 'Confirm Admission'}</button>)}
-                    <button type="button" onClick={() => setSelectedPerson(null)} className="w-full py-3 text-slate-500 font-bold text-xs mt-2 hover:text-white">Cancel</button>
-                </div>
-            </ModalBackdrop>
-        )}
-    </div>
-  );
+        <ManagerModal isOpen={showManager} onClose={() => setShowManager(false)} deskLocked={deskLocked} onToggleLock={handleToggleLock} onRestore={handleRestoreUser} supabase={supabase} />
+        <RegistrationModal isOpen={isRegistering} onClose={() => setIsRegistering(false)} onRegister={handleRegister} processing={processing} />
+        {reportPerson && <UserReportModal person={reportPerson} onClose={() => setReportPerson(null)} onUpdate={fetchPeople} supabase={supabase} />}
+        {showDailyAuditModal && <DailyAuditModal dailyAudit={dailyAudit} todaysTotal={todaysTotal} onClose={() => setShowDailyAuditModal(false)} />}
+        
+        {/* NEW: Ticket Modal */}
+        {ticketPerson && <TicketModal person={ticketPerson} onClose={() => setTicketPerson(null)} />}
+        
+        {selectedPerson && (
+            <ModalBackdrop onClose={() => setSelectedPerson(null)}>
+                <div className="bg-[#1e293b] w-full max-w-sm rounded-3xl border border-white/10 p-6 animate-in zoom-in-95">
+                    <h3 className="text-lg font-bold text-white mb-4">{modalMode === 'payment' ? 'Record Payment' : 'Check-In Confirmation'}</h3>
+                    <div className="bg-white/5 rounded-xl p-4 mb-4"><p className="text-xs text-slate-400">Camper</p><p className="text-white font-bold">{selectedPerson.full_name}</p><p className="text-xs text-slate-400 mt-2">Current Status</p><p className={`font-mono ${selectedPerson.amount_paid >= REG_FEE ? 'text-emerald-400' : 'text-amber-400'}`}>₵{selectedPerson.amount_paid} Paid</p></div>
+                    {modalMode === 'payment' ? (
+                        <div className="space-y-3">
+                            <div><label className="text-xs text-slate-400 block mb-1">Top-up Amount</label><input type="number" min="0" onKeyDown={(e) => {if (["-", "e", "E", "+"].includes(e.key)) {e.preventDefault();}}} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white text-lg font-mono focus:border-indigo-500 outline-none" autoFocus value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} /></div>
+                            <div><label className="text-xs text-slate-400 block mb-1">Method</label><select className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}><option>Cash</option><option>MoMo</option></select></div>
+                            {paymentMethod === 'MoMo' && (<div className="animate-in slide-in-from-top-2"><label className="text-xs text-amber-400 block mb-1 font-bold">Transaction Reference ID *</label><input type="text" placeholder="e.g. 5567800021" className="w-full bg-amber-900/20 border border-amber-500/50 rounded-xl p-3 text-white text-sm focus:border-amber-400 outline-none" value={momoTransId} onChange={e => setMomoTransId(e.target.value)} /></div>)}
+                            <button onClick={handlePayment} disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-2">{processing ? 'Processing...' : 'Confirm Payment'}</button>
+                        </div>
+                    ) : (<button onClick={handleAdmit} disabled={processing} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl">{processing ? 'Checking In...' : 'Confirm Admission'}</button>)}
+                    <button type="button" onClick={() => setSelectedPerson(null)} className="w-full py-3 text-slate-500 font-bold text-xs mt-2 hover:text-white">Cancel</button>
+                </div>
+            </ModalBackdrop>
+        )}
+    </div>
+  );
 }
