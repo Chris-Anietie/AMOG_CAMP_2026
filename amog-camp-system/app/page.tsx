@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
-// FIXED IMPORT: Using the standard library that matches the <QRCode> component below
 import { QRCodeSVG } from "qrcode.react";
 
 // --- CONFIGURATION ---
@@ -38,6 +37,7 @@ const Unlock = ({ className }: any) => <IconWrapper className={className}><rect 
 const RefreshCw = ({ className }: any) => <IconWrapper className={className}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconWrapper>;
 const Download = ({ className }: any) => <IconWrapper className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconWrapper>;
 const Ticket = ({ className }: any) => <IconWrapper className={className}><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></IconWrapper>;
+const WifiOff = ({ className }: any) => <IconWrapper className={className}><line x1="1" x2="23" y1="1" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" x2="12.01" y1="20" y2="20"/></IconWrapper>;
 
 // --- COMPONENT: MODAL BACKDROP ---
 const ModalBackdrop = ({ children, onClose }: { children: React.ReactNode, onClose: () => void }) => (
@@ -59,10 +59,7 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
 // --- TICKET MODAL WITH QR CODE ---
 function TicketModal({ person, onClose }: any) {
     if (!person) return null;
-    
-    // The data encoded in the QR code - Readable Text format
     const qrData = `OFFICIAL GATE PASS\nName: ${person.full_name}\nGroup: ${person.grace_school || 'Not Assigned'}\nReceipt: #${person.receipt_no}\nSTATUS: PAID ✅`;
-
     return (
         <ModalBackdrop onClose={onClose}>
             <div className="bg-[#1e293b] w-full max-w-sm rounded-3xl border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 relative">
@@ -77,20 +74,10 @@ function TicketModal({ person, onClose }: any) {
                     <div className="absolute top-[-10px] right-[-10px] w-5 h-5 bg-[#1e293b] rounded-full"></div>
                     <div className="border-b-2 border-dashed border-slate-200 absolute top-0 left-4 right-4"></div>
                     <div className="text-center space-y-4 pt-4">
-                        <div className="flex justify-center my-4">
-                            <div className="p-2 border-2 border-slate-900 rounded-lg">
-                                {/* FIXED: Using QRCode component correctly */}
-                                <QRCodeSVG value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="M" />
-                            </div>
-                        </div>
+                        <div className="flex justify-center my-4"><div className="p-2 border-2 border-slate-900 rounded-lg"><QRCodeSVG value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="M" /></div></div>
                         <div><h3 className="text-xl font-bold text-slate-900 leading-tight">{person.full_name}</h3><p className="text-xs text-slate-500 uppercase tracking-widest mt-1">Camper</p></div>
-                        <div className="flex justify-center gap-4">
-                            <div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Group</p><p className="text-2xl font-black text-indigo-600">{person.grace_school || '?'}</p></div>
-                            <div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Receipt</p><p className="text-xl font-mono font-bold text-slate-700">#{person.receipt_no}</p></div>
-                        </div>
-                        <div className="border-t border-slate-100 pt-4">
-                            <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200"><CheckCircle className="w-4 h-4"/> PAID IN FULL</div>
-                        </div>
+                        <div className="flex justify-center gap-4"><div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Group</p><p className="text-2xl font-black text-indigo-600">{person.grace_school || '?'}</p></div><div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Receipt</p><p className="text-xl font-mono font-bold text-slate-700">#{person.receipt_no}</p></div></div>
+                        <div className="border-t border-slate-100 pt-4"><div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200"><CheckCircle className="w-4 h-4"/> PAID IN FULL</div></div>
                         <p className="text-[10px] text-slate-400 mt-2">Gate Security: Scan to verify details.</p>
                     </div>
                 </div>
@@ -104,10 +91,7 @@ function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: any) {
     return (
         <ModalBackdrop onClose={onClose}>
             <div className="bg-[#1e293b] w-full max-w-lg rounded-3xl border border-white/10 shadow-2xl animate-in zoom-in-95">
-                <div className="bg-gradient-to-r from-emerald-900/50 to-teal-900/50 p-6 border-b border-white/10 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-white">Daily Reconciliation</h2>
-                    <button type="button" onClick={onClose} className="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full text-white">✕</button>
-                </div>
+                <div className="bg-gradient-to-r from-emerald-900/50 to-teal-900/50 p-6 border-b border-white/10 flex justify-between items-center"><h2 className="text-xl font-bold text-white">Daily Reconciliation</h2><button type="button" onClick={onClose} className="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full text-white">✕</button></div>
                 <div className="p-6 space-y-4">
                     <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/30 text-center"><p className="text-xs uppercase text-emerald-400 font-bold tracking-widest">Gross Revenue (Today)</p><p className="text-4xl font-extrabold text-white mt-1">₵{todaysTotal}</p><p className="text-xs text-slate-400 mt-2">{dailyAudit.count} transactions today</p></div>
                     <div className="grid grid-cols-2 gap-4"><div className="bg-black/30 p-4 rounded-xl border border-white/10 text-center"><p className="text-xs uppercase text-slate-400 font-bold mb-1">Cash Drawer</p><p className="text-2xl font-mono font-bold text-white">₵{dailyAudit.cash}</p></div><div className="bg-black/30 p-4 rounded-xl border border-white/10 text-center"><p className="text-xs uppercase text-slate-400 font-bold mb-1">MoMo Wallet</p><p className="text-2xl font-mono font-bold text-white">₵{dailyAudit.momo}</p></div></div>
@@ -147,19 +131,27 @@ function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, su
 }
 
 // --- REGISTRATION MODAL ---
-function RegistrationModal({ isOpen, onClose, onRegister, processing }: any) {
+function RegistrationModal({ isOpen, onClose, onRegister, processing, isOffline }: any) {
   const [data, setData] = useState({ full_name: '', phone_number: '', role: 'Member', branch: '', gender: 'Male', t_shirt: 'L', t_shirt_color: 'White', invited_by: '', contact_type: 'WhatsApp', location: '', wants_tshirt: false });
   if (!isOpen) return null;
   return (
     <ModalBackdrop onClose={onClose}>
       <div className="bg-[#1e293b] w-full max-w-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-white/10 bg-white/5 flex justify-between items-center"><div><h2 className="text-xl font-bold text-white tracking-tight">New Registration</h2><p className="text-indigo-300 text-xs font-medium">Add a new camper to the database</p></div><button type="button" onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors"><X className="w-6 h-6" /></button></div>
+        <div className="p-6 border-b border-white/10 bg-white/5 flex justify-between items-center">
+            <div>
+                <h2 className="text-xl font-bold text-white tracking-tight">New Registration</h2>
+                {/* Visual Feedback for Offline Mode */}
+                {isOffline && <p className="text-amber-400 text-xs font-bold flex items-center gap-1 mt-1"><WifiOff className="w-3 h-3"/> OFFLINE MODE - Saving to device</p>}
+                {!isOffline && <p className="text-indigo-300 text-xs font-medium">Add a new camper to the database</p>}
+            </div>
+            <button type="button" onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
+        </div>
         <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
           <div className="space-y-4"><h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Personal Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="group"><label className="text-xs font-medium text-slate-300 mb-1.5 block">Full Name</label><div className="relative"><User className="absolute left-3 top-3 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" /><input type="text" className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-600" placeholder="John Doe" value={data.full_name} onChange={e => setData({ ...data, full_name: e.target.value })} /></div></div><div className="group"><label className="text-xs font-medium text-slate-300 mb-1.5 block">Phone Number</label><div className="relative"><Smartphone className="absolute left-3 top-3 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" /><input type="tel" className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-600" placeholder="024 XXX XXXX" value={data.phone_number} onChange={e => setData({ ...data, phone_number: e.target.value })} /></div></div></div></div>
           <div className="space-y-4"><h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Logistics & Role</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-xs font-medium text-slate-300 mb-1.5 block">Branch</label><select className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 px-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none appearance-none" value={data.branch} onChange={e => setData({ ...data, branch: e.target.value })}><option value="">Select Branch...</option>{CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}</select></div><div><label className="text-xs font-medium text-slate-300 mb-1.5 block">Gender (For Room Allocation)</label><div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">{['Male', 'Female'].map(g => (<button key={g} type="button" onClick={() => setData({ ...data, gender: g })} className={`flex-1 text-xs font-bold py-2 rounded-lg transition-all ${data.gender === g ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>{g}</button>))}</div></div></div><div><label className="text-xs font-medium text-slate-300 mb-1.5 block">Role</label><div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">{['Member', 'Leader', 'Pastor', 'Guest'].map(r => (<button key={r} type="button" onClick={() => setData({ ...data, role: r })} className={`flex-1 text-xs font-bold py-2 rounded-lg transition-all ${data.role === r ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>{r}</button>))}</div></div></div>
           <div className="bg-indigo-900/10 border border-indigo-500/20 rounded-2xl p-4"><div className="flex justify-between items-center mb-4"><h3 className="text-sm font-bold text-indigo-200 flex items-center gap-2">Camp T-Shirt <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30">OPTIONAL</span></h3><label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={data.wants_tshirt} onChange={e => setData({ ...data, wants_tshirt: e.target.checked })} /><div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div></label></div>{data.wants_tshirt && (<div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 fade-in"><div><label className="text-xs font-medium text-indigo-300 mb-1.5 block">Size</label><select className="w-full bg-slate-900/50 border border-indigo-500/30 rounded-xl py-2 px-3 text-white outline-none" value={data.t_shirt} onChange={e => setData({ ...data, t_shirt: e.target.value })}>{['S', 'M', 'L', 'XL', 'XXL', '3XL'].map(s => <option key={s} className="bg-slate-900">{s}</option>)}</select></div><div><label className="text-xs font-medium text-indigo-300 mb-1.5 block">Color Preference</label><input type="text" className="w-full bg-slate-900/50 border border-indigo-500/30 rounded-xl py-2 px-3 text-white outline-none placeholder:text-slate-600" placeholder="e.g. White" value={data.t_shirt_color} onChange={e => setData({ ...data, t_shirt_color: e.target.value })} /></div></div>)}</div>
         </div>
-        <div className="p-6 border-t border-white/10 bg-slate-900/50 flex gap-3"><button type="button" onClick={onClose} className="flex-1 py-3.5 bg-transparent border border-white/10 hover:bg-white/5 text-slate-300 font-bold rounded-xl transition-all">Cancel</button><button onClick={() => onRegister(data)} disabled={processing} className="flex-[2] py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-900/20 transition-all flex items-center justify-center gap-2">{processing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Plus className="w-5 h-5" /> Register Camper</>}</button></div>
+        <div className="p-6 border-t border-white/10 bg-slate-900/50 flex gap-3"><button type="button" onClick={onClose} className="flex-1 py-3.5 bg-transparent border border-white/10 hover:bg-white/5 text-slate-300 font-bold rounded-xl transition-all">Cancel</button><button onClick={() => onRegister(data)} disabled={processing} className={`flex-[2] py-3.5 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${isOffline ? 'bg-amber-600 hover:bg-amber-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}>{processing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Plus className="w-5 h-5" /> {isOffline ? 'Save Offline' : 'Register Camper'}</>}</button></div>
       </div>
     </ModalBackdrop>
   );
@@ -202,10 +194,11 @@ export default function Home() {
   const [filter, setFilter] = useState('all');
   const [branchFilter, setBranchFilter] = useState('');
   const [isOnline, setIsOnline] = useState(true);
+  const [offlineQueue, setOfflineQueue] = useState<any[]>([]); // NEW: Queue State
   
   const [isRegistering, setIsRegistering] = useState(false);
   const [showManager, setShowManager] = useState(false);
-  const [ticketPerson, setTicketPerson] = useState<any>(null); // NEW: Ticket Modal
+  const [ticketPerson, setTicketPerson] = useState<any>(null); 
   const [reportPerson, setReportPerson] = useState<any>(null);
   const [selectedPerson, setSelectedPerson] = useState<any>(null);
   const [modalMode, setModalMode] = useState<'payment' | 'checkin'>('payment');
@@ -222,8 +215,16 @@ export default function Home() {
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
-    window.addEventListener('online', () => setIsOnline(true));
-    window.addEventListener('offline', () => setIsOnline(false));
+    
+    // Check local storage for existing queue on boot
+    const savedQueue = localStorage.getItem('offlineQueue');
+    if (savedQueue) setOfflineQueue(JSON.parse(savedQueue));
+
+    const _onOnline = () => { setIsOnline(true); showToast("Back Online!", "success"); };
+    const _onOffline = () => { setIsOnline(false); showToast("You are Offline. Saving to device.", "warning"); };
+    
+    window.addEventListener('online', _onOnline);
+    window.addEventListener('offline', _onOffline);
 
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
     supabase.auth.onAuthStateChange((_event, session) => setSession(session));
@@ -236,8 +237,50 @@ export default function Home() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'desk_config' }, () => { fetchDeskConfig(); })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { 
+        window.removeEventListener('online', _onOnline);
+        window.removeEventListener('offline', _onOffline);
+        supabase.removeChannel(channel); 
+    };
   }, []);
+
+  // --- NEW: SYNC FUNCTION ---
+  async function syncOfflineData() {
+      if (offlineQueue.length === 0) return;
+      if (!isOnline) return showToast("Still offline. Cannot sync.", "error");
+      
+      setProcessing(true);
+      let successCount = 0;
+      let failCount = 0;
+      
+      // We loop through the queue and try to upload each
+      // Note: In production, bulk insert is better, but loop is safer for partial failures
+      const newQueue = [...offlineQueue];
+      
+      for (let i = newQueue.length - 1; i >= 0; i--) {
+          const camper = newQueue[i];
+          const { error } = await supabase.from('participants').insert([camper]);
+          
+          if (!error) {
+              successCount++;
+              newQueue.splice(i, 1); // Remove from queue if successful
+          } else {
+              failCount++;
+              console.error("Sync failed for", camper.full_name, error);
+          }
+      }
+      
+      setOfflineQueue(newQueue);
+      localStorage.setItem('offlineQueue', JSON.stringify(newQueue));
+      setProcessing(false);
+      
+      if (successCount > 0) {
+          showToast(`Synced ${successCount} campers!`, "success");
+          fetchPeople();
+          logAction("Offline Sync", `Batch synced ${successCount} records. Failures: ${failCount}`);
+      }
+      if (failCount > 0) showToast(`${failCount} failed to sync. Try again.`, "error");
+  }
 
   async function fetchPeople() {
      if(!supabaseUrl) return;
@@ -326,8 +369,30 @@ export default function Home() {
 
   async function handleRegister(data: any) {
     if(deskLocked) return showToast("Desk is LOCKED.", "error");
-    if(!isOnline) return showToast("Offline mode.", "error");
     if(data.phone_number.length < 10) return showToast("Invalid Phone", "error");
+    
+    // --- OFFLINE LOGIC ---
+    if(!isOnline) {
+        // Create the payload exactly as Supabase expects it
+        const finalTShirt = data.wants_tshirt ? `${data.t_shirt} (${data.t_shirt_color})` : null;
+        const offlinePayload = {
+            full_name: data.full_name, phone_number: data.phone_number, role: data.role,
+            branch: data.branch, t_shirt: finalTShirt, payment_status: 'Pending',
+            amount_paid: 0, cash_amount: 0, momo_amount: 0, checked_in: false,
+            gender: data.gender, created_at: new Date().toISOString()
+        };
+        
+        // Save to State & LocalStorage
+        const updatedQueue = [...offlineQueue, offlinePayload];
+        setOfflineQueue(updatedQueue);
+        localStorage.setItem('offlineQueue', JSON.stringify(updatedQueue));
+        
+        showToast("Offline: Saved to Queue ⚠️", "warning");
+        setIsRegistering(false);
+        return;
+    }
+    
+    // --- ONLINE LOGIC (Normal) ---
     setProcessing(true);
     const exists = people.find(p => p.phone_number === data.phone_number);
     if(exists) { setProcessing(false); return showToast("User already exists!", "error"); }
@@ -377,7 +442,20 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100 font-sans pb-20 relative overflow-x-hidden">
         <div className="fixed inset-0 pointer-events-none z-0"><img src="/camp-bg.png" onError={(e) => e.currentTarget.src = "https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?q=80&w=2070&auto=format&fit=crop"} className="absolute inset-0 w-full h-full object-cover opacity-20" alt="Camp Background" /><div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-900/80 to-[#0f172a]"></div><div className="absolute top-0 left-0 right-0 h-[500px] bg-indigo-600/10 blur-[120px] rounded-full mix-blend-screen"></div></div>
-        <header className="sticky top-0 z-50 bg-[#0f172a]/80 backdrop-blur-lg border-b border-white/5 px-4 py-3 flex justify-between items-center">
+        
+        {/* OFFLINE BANNER */}
+        {!isOnline && <div className="fixed top-0 left-0 right-0 bg-amber-600/90 text-white text-center py-2 text-xs font-bold z-[200] backdrop-blur flex items-center justify-center gap-2 animate-in slide-in-from-top"><WifiOff className="w-4 h-4"/> OFFLINE MODE - Changes will save locally</div>}
+        
+        {/* OFFLINE SYNC BAR (Only shows if there are items in queue) */}
+        {offlineQueue.length > 0 && (
+            <div className="fixed top-14 left-0 right-0 z-[190] flex justify-center">
+                <button onClick={syncOfflineData} disabled={processing || !isOnline} className={`px-6 py-2 rounded-full font-bold text-xs shadow-xl border flex items-center gap-2 ${isOnline ? 'bg-indigo-600 text-white border-indigo-400 animate-bounce' : 'bg-slate-800 text-slate-400 border-slate-700 cursor-not-allowed'}`}>
+                    {processing ? 'Syncing...' : `⚠️ ${offlineQueue.length} Campers Waiting to Sync`}
+                </button>
+            </div>
+        )}
+
+        <header className="sticky top-0 z-50 bg-[#0f172a]/80 backdrop-blur-lg border-b border-white/5 px-4 py-3 flex justify-between items-center mt-2">
             <div className="flex items-center gap-3"><div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/20">A</div><div><h1 className="font-bold text-lg leading-none">AMOG <span className="text-indigo-400">2026</span></h1><div className="flex items-center gap-2 mt-0.5"><p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Help Desk</p>{deskLocked && <span className="bg-red-500/20 border border-red-500/50 text-red-300 text-[9px] px-1.5 rounded uppercase font-bold animate-pulse">LOCKED</span>}</div></div></div>
             <div className="flex gap-2">
                 <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md px-3 py-2 rounded-xl border border-purple-500/30 text-center cursor-pointer hover:bg-purple-900/60 transition-all flex items-center gap-2 mr-2"><span className="text-[10px] uppercase text-purple-300 font-bold tracking-wider">Today: </span><span className="text-sm font-bold text-white">₵{todaysTotal}</span></div>
@@ -431,7 +509,7 @@ export default function Home() {
         </main>
 
         <ManagerModal isOpen={showManager} onClose={() => setShowManager(false)} deskLocked={deskLocked} onToggleLock={handleToggleLock} onRestore={handleRestoreUser} supabase={supabase} />
-        <RegistrationModal isOpen={isRegistering} onClose={() => setIsRegistering(false)} onRegister={handleRegister} processing={processing} />
+        <RegistrationModal isOpen={isRegistering} onClose={() => setIsRegistering(false)} onRegister={handleRegister} processing={processing} isOffline={!isOnline} />
         {reportPerson && <UserReportModal person={reportPerson} onClose={() => setReportPerson(null)} onUpdate={fetchPeople} supabase={supabase} />}
         {showDailyAuditModal && <DailyAuditModal dailyAudit={dailyAudit} todaysTotal={todaysTotal} onClose={() => setShowDailyAuditModal(false)} />}
         
