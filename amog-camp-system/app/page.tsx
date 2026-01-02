@@ -16,7 +16,7 @@ const REG_FEE = 400;
 const IconWrapper = ({ children, className }: { children: React.ReactNode, className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
 );
-// Manual SVG definitions to ensure no missing icon errors if package missing
+// Manual SVG definitions
 const Users = ({ className }: any) => <IconWrapper className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></IconWrapper>;
 const Coins = ({ className }: any) => <IconWrapper className={className}><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></IconWrapper>;
 const CreditCard = ({ className }: any) => <IconWrapper className={className}><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></IconWrapper>;
@@ -38,12 +38,16 @@ const Edit = ({ className }: any) => <IconWrapper className={className}><path d=
 const X = ({ className }: any) => <IconWrapper className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconWrapper>;
 const Smartphone = ({ className }: any) => <IconWrapper className={className}><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></IconWrapper>;
 
-// --- COMPONENTS ---
-
+// --- UPDATED MODAL BACKDROP (Fix 1: Stops bubbling) ---
 const ModalBackdrop = ({ children, onClose }: { children: React.ReactNode, onClose: () => void }) => (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-    <div className="absolute inset-0" onClick={onClose}></div>
-    {children}
+  <div 
+    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+    onClick={onClose} // Clicking the background closes the modal
+  >
+    {/* This inner div catches the click and stops it from reaching the background */}
+    <div onClick={(e) => e.stopPropagation()} className="w-full flex justify-center">
+      {children}
+    </div>
   </div>
 );
 
@@ -80,7 +84,8 @@ function RegistrationModal({ isOpen, onClose, onRegister, processing }: any) {
             <h2 className="text-xl font-bold text-white tracking-tight">New Registration</h2>
             <p className="text-indigo-300 text-xs font-medium">Add a new camper to the database</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
+          {/* Fix 2: Added type="button" */}
+          <button type="button" onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
         </div>
 
         <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
@@ -123,7 +128,8 @@ function RegistrationModal({ isOpen, onClose, onRegister, processing }: any) {
                 <label className="text-xs font-medium text-slate-300 mb-1.5 block">Role</label>
                 <div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">
                   {['Member', 'Leader', 'Pastor', 'Guest'].map(r => (
-                    <button key={r} onClick={() => setData({ ...data, role: r })}
+                    // Fix 2: Added type="button" to prevent form submission/closing
+                    <button key={r} type="button" onClick={() => setData({ ...data, role: r })}
                       className={`flex-1 text-xs font-bold py-2 rounded-lg transition-all ${data.role === r ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
                       {r}
                     </button>
@@ -165,7 +171,8 @@ function RegistrationModal({ isOpen, onClose, onRegister, processing }: any) {
         </div>
 
         <div className="p-6 border-t border-white/10 bg-slate-900/50 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3.5 bg-transparent border border-white/10 hover:bg-white/5 text-slate-300 font-bold rounded-xl transition-all">Cancel</button>
+          {/* Fix 2: Added type="button" */}
+          <button type="button" onClick={onClose} className="flex-1 py-3.5 bg-transparent border border-white/10 hover:bg-white/5 text-slate-300 font-bold rounded-xl transition-all">Cancel</button>
           <button onClick={() => onRegister(data)} disabled={processing} className="flex-[2] py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-900/20 transition-all flex items-center justify-center gap-2">
             {processing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Plus className="w-5 h-5" /> Complete Registration</>}
           </button>
@@ -217,13 +224,15 @@ function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
                             <p className="text-slate-400 text-sm mt-0.5 flex items-center gap-2"><Smartphone className="w-3 h-3"/> {person.phone_number}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full text-slate-400"><X className="w-6 h-6"/></button>
+                    {/* Fix 2: Added type="button" */}
+                    <button type="button" onClick={onClose} className="p-1 hover:bg-white/10 rounded-full text-slate-400"><X className="w-6 h-6"/></button>
                 </div>
 
                 {/* Tabs */}
                 <div className="flex border-b border-white/5 bg-white/5 p-1">
-                   <button onClick={() => setActiveTab('details')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'details' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Profile</button>
-                   <button onClick={() => setActiveTab('logs')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'logs' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Audit Logs</button>
+                   {/* Fix 2: Added type="button" to tabs */}
+                   <button type="button" onClick={() => setActiveTab('details')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'details' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Profile</button>
+                   <button type="button" onClick={() => setActiveTab('logs')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'logs' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Audit Logs</button>
                 </div>
 
                 <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
@@ -260,7 +269,8 @@ function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
                                     <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">T-Shirt</span><span className="text-white text-sm">{person.t_shirt || 'None'}</span></div>
                                     <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Role</span><span className="text-white text-sm">{person.role}</span></div>
                                     <div className="flex justify-between"><span className="text-slate-400 text-sm">Status</span><span className={`text-sm font-bold ${balance <= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{balance <= 0 ? 'PAID' : 'OWING'}</span></div>
-                                    <button onClick={() => setIsEditing(true)} className="w-full mt-4 py-2 border border-white/10 hover:bg-white/5 text-indigo-300 text-xs font-bold uppercase rounded-lg transition-all">Edit Profile</button>
+                                    {/* Fix 2: Added type="button" */}
+                                    <button type="button" onClick={() => setIsEditing(true)} className="w-full mt-4 py-2 border border-white/10 hover:bg-white/5 text-indigo-300 text-xs font-bold uppercase rounded-lg transition-all">Edit Profile</button>
                                 </div>
                             )}
                         </div>
@@ -531,7 +541,8 @@ export default function Home() {
             {/* FILTERS TABS */}
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                 {['all', 'owing', 'paid', 'checked_in'].map(f => (
-                    <button key={f} onClick={() => setFilter(f)} className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider border transition-all whitespace-nowrap ${filter === f ? 'bg-white text-slate-900 border-white' : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500'}`}>
+                    // Fix 2: Added type="button"
+                    <button type="button" key={f} onClick={() => setFilter(f)} className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider border transition-all whitespace-nowrap ${filter === f ? 'bg-white text-slate-900 border-white' : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500'}`}>
                         {f.replace('_', ' ')}
                     </button>
                 ))}
@@ -572,11 +583,13 @@ export default function Home() {
                             </div>
 
                             <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                                <button onClick={() => { setSelectedPerson(p); setModalMode('payment'); }} className="flex-1 bg-white/5 hover:bg-white/10 text-slate-200 py-2.5 rounded-xl text-xs font-bold border border-white/5 transition-colors flex items-center justify-center gap-2">
+                                {/* Fix 2: Added type="button" */}
+                                <button type="button" onClick={() => { setSelectedPerson(p); setModalMode('payment'); }} className="flex-1 bg-white/5 hover:bg-white/10 text-slate-200 py-2.5 rounded-xl text-xs font-bold border border-white/5 transition-colors flex items-center justify-center gap-2">
                                     <Coins className="w-3 h-3"/> Pay
                                 </button>
                                 {!isCheckedIn && (
-                                    <button onClick={() => { setSelectedPerson(p); setModalMode('checkin'); }} disabled={isOwing} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${isOwing ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}>
+                                    // Fix 2: Added type="button"
+                                    <button type="button" onClick={() => { setSelectedPerson(p); setModalMode('checkin'); }} disabled={isOwing} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${isOwing ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}>
                                         <LogOut className="w-3 h-3 rotate-180"/> Admit
                                     </button>
                                 )}
@@ -611,7 +624,8 @@ export default function Home() {
                     ) : (
                         <button onClick={handleAdmit} disabled={processing} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl">{processing ? 'Checking In...' : 'Confirm Admission'}</button>
                     )}
-                    <button onClick={() => setSelectedPerson(null)} className="w-full py-3 text-slate-500 font-bold text-xs mt-2 hover:text-white">Cancel</button>
+                    {/* Fix 2: Added type="button" */}
+                    <button type="button" onClick={() => setSelectedPerson(null)} className="w-full py-3 text-slate-500 font-bold text-xs mt-2 hover:text-white">Cancel</button>
                 </div>
             </ModalBackdrop>
         )}
