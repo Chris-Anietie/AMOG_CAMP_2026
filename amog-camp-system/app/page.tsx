@@ -1,7 +1,11 @@
 "use client";
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
+<<<<<<< HEAD
 import { QRCodeSVG } from "qrcode.react";
+=======
+import QRCode from "react-qr-code"; 
+>>>>>>> 613b915bdda672663822eecb6dd1463e9bcbdbb6
 
 // --- CONFIGURATION ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -74,7 +78,11 @@ function TicketModal({ person, onClose }: any) {
                     <div className="absolute top-[-10px] right-[-10px] w-5 h-5 bg-[#1e293b] rounded-full"></div>
                     <div className="border-b-2 border-dashed border-slate-200 absolute top-0 left-4 right-4"></div>
                     <div className="text-center space-y-4 pt-4">
+<<<<<<< HEAD
                         <div className="flex justify-center my-4"><div className="p-2 border-2 border-slate-900 rounded-lg"><QRCodeSVG value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="M" /></div></div>
+=======
+                        <div className="flex justify-center my-4"><div className="p-2 border-2 border-slate-900 rounded-lg"><QRCode value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="M" /></div></div>
+>>>>>>> 613b915bdda672663822eecb6dd1463e9bcbdbb6
                         <div><h3 className="text-xl font-bold text-slate-900 leading-tight">{person.full_name}</h3><p className="text-xs text-slate-500 uppercase tracking-widest mt-1">Camper</p></div>
                         <div className="flex justify-center gap-4"><div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Group</p><p className="text-2xl font-black text-indigo-600">{person.grace_school || '?'}</p></div><div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Receipt</p><p className="text-xl font-mono font-bold text-slate-700">#{person.receipt_no}</p></div></div>
                         <div className="border-t border-slate-100 pt-4"><div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200"><CheckCircle className="w-4 h-4"/> PAID IN FULL</div></div>
