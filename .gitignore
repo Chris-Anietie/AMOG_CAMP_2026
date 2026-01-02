@@ -3,7 +3,7 @@ node_modules/
 dist/
 build/
 
-# Environment variables (Sensitive Data)
+# Environment variables
 .env
 .env.local
 
