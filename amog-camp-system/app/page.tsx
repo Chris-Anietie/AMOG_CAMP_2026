@@ -3,8 +3,10 @@ import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // --- PASTE YOUR KEYS HERE ---
-const supabaseUrl = "https://ujbhfbpigvwkoygytvww.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYmhmYnBpZ3Z3a295Z3l0dnd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODY2MTMsImV4cCI6MjA4MDc2MjYxM30.xleJuD1h9F85dLqWL6uMB_KedCmLh0-CRLikByUSaaE";
+// Move keys to environment variables: set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+if (!supabaseUrl || !supabaseKey) console.warn('Missing Supabase public env vars: NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY');
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // CONSTANTS
@@ -241,11 +243,24 @@ export default function Home() {
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
-    window.addEventListener('online', () => { setIsOnline(true); showToast("Back Online!", "success"); fetchPeople(); });
-    window.addEventListener('offline', () => { setIsOnline(false); showToast("YOU ARE OFFLINE.", "warning"); });
+    const _onOnline = () => { setIsOnline(true); showToast("Back Online!", "success"); fetchPeople(); };
+    const _onOffline = () => { setIsOnline(false); showToast("YOU ARE OFFLINE.", "warning"); };
+    window.addEventListener('online', _onOnline);
+    window.addEventListener('offline', _onOffline);
+    return () => { window.removeEventListener('online', _onOnline); window.removeEventListener('offline', _onOffline); };
   }, []);
 
   useEffect(() => {
+    // E2E dev mode: allow tests to open the app without real auth and with seeded participants
+    if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
+      setSession({ user: { email: 'e2e@local.test' } });
+      setPeople([
+        { id: 1, full_name: 'Pay User', phone_number: '0244000001', role: 'Member', branch: 'GWC_NSAWAM', amount_paid: 0, cash_amount: 0, momo_amount: 0, payment_status: 'Pending', checked_in: false },
+        { id: 2, full_name: 'Paid User', phone_number: '0244000002', role: 'Member', branch: 'GWC_NSAWAM', amount_paid: REG_FEE, cash_amount: REG_FEE, momo_amount: 0, payment_status: 'Paid', checked_in: false }
+      ]);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
     return () => subscription.unsubscribe();
@@ -317,7 +332,7 @@ export default function Home() {
     const csvRows = [headers.join(',')];
     people.forEach(p => {
       const total = (p.cash_amount || 0) + (p.momo_amount || 0);
-      const row = [`"${p.full_name}"`, p.role, p.branch, `'${p.phone_number}`, p.payment_status, total, p.cash_amount, p.momo_amount, p.t_shirt || '-', p.grace_school || '-', p.checked_in_by || '-'];
+    const row = [`"${p.full_name}"`, p.role, p.branch, `"${p.phone_number}"`, p.payment_status, total, p.cash_amount, p.momo_amount, p.t_shirt || '-', p.grace_school || '-', p.checked_in_by || '-'];
       csvRows.push(row.join(','));
     });
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
@@ -499,16 +514,17 @@ export default function Home() {
     g6: people.filter(p => p.grace_school === 'Group 6').length,
   };
 
-  if (!session) { return ( <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative font-sans overflow-hidden"><style>{globalStyles}</style><div className="absolute inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-br from-indigo-950/90 via-purple-900/80 to-black/90 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover scale-105" alt="Background" /></div><div className="relative z-20 w-full max-w-md p-6"><div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl"><div className="text-center mb-8"><h1 className="text-4xl font-extrabold text-white tracking-tight">AMOG <span className="text-indigo-400">2026</span></h1><p className="text-indigo-200 mt-2 font-medium tracking-wider uppercase text-[11px]">Staff Access Portal</p></div><form onSubmit={handleLogin} method="POST" className="space-y-5"><div><label className="text-[11px] font-bold text-indigo-300 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label><div className="relative"><User className="absolute left-4 top-3.5 w-5 h-5 text-indigo-400/60"/><input name="email" type="email" className="w-full pl-12 p-3.5 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-900/50 outline-none transition-all" placeholder="Enter email" required /></div></div><div><label className="text-[11px] font-bold text-indigo-300 uppercase ml-1 mb-2 block tracking-wider">Password</label><div className="relative"><Lock className="absolute left-4 top-3.5 w-5 h-5 text-indigo-400/60"/><input name="password" type="password" className="w-full pl-12 p-3.5 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-900/50 outline-none transition-all" placeholder="••••••••" required /></div></div><button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-900/30 transition-all">Secure Login</button></form></div></div>{toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}</div> ); }
+  if (!session) { return ( <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative font-sans overflow-hidden"><style>{globalStyles}</style><div className="absolute inset-0 z-0 pointer-events-none"><div className="absolute inset-0 bg-gradient-to-br from-indigo-950/90 via-purple-900/80 to-black/90 z-10"></div><img src="/camp-bg.png" className="w-full h-full object-cover scale-105 pointer-events-none" alt="Background" /></div><div className="relative z-20 w-full max-w-md p-6"><div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl"><div className="text-center mb-8"><h1 className="text-4xl font-extrabold text-white tracking-tight">AMOG <span className="text-indigo-400">2026</span></h1><p className="text-indigo-200 mt-2 font-medium tracking-wider uppercase text-[11px]">Staff Access Portal</p></div><form onSubmit={handleLogin} method="POST" className="space-y-5"><div><label className="text-[11px] font-bold text-indigo-300 uppercase ml-1 mb-2 block tracking-wider">Admin Email</label><div className="relative"><User className="absolute left-4 top-3.5 w-5 h-5 text-indigo-400/60"/><input name="email" type="email" className="w-full pl-12 p-3.5 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-900/50 outline-none transition-all" placeholder="Enter email" required /></div></div><div><label className="text-[11px] font-bold text-indigo-300 uppercase ml-1 mb-2 block tracking-wider">Password</label><div className="relative"><Lock className="absolute left-4 top-3.5 w-5 h-5 text-indigo-400/60"/><input name="password" type="password" className="w-full pl-12 p-3.5 rounded-xl bg-black/40 border border-white/5 text-white focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-900/50 outline-none transition-all" placeholder="••••••••" required /></div></div><button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-900/30 transition-all">Secure Login</button></form></div></div>{toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}</div> ); }
 
   return (
     <div className="min-h-screen font-sans text-gray-100 bg-[#0f172a] relative pb-20 overflow-x-hidden">
       <style>{globalStyles}</style>
-      <div className="fixed inset-0 z-0"><div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-black/80 z-[-1]"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-70 fixed z-[-2]" alt="bg" /></div>
+      <div className="fixed inset-0 z-0 pointer-events-none"><div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-black/80 z-[-1]"></div><img src="/camp-bg.png" className="w-full h-full object-cover opacity-70 fixed z-[-2] pointer-events-none" alt="bg" /></div>
       {!isOnline && ( <div className="fixed top-0 left-0 right-0 bg-red-600/90 text-white text-center py-2 text-xs font-bold z-[200] backdrop-blur flex items-center justify-center gap-2"><AlertCircle className="w-4 h-4"/> OFFLINE MODE</div> )}
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 py-8">
+
         {/* HEADER & STATS */}
         <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-6">
           <div className="text-center lg:text-left"><h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">AMOG <span className="text-indigo-500">2026</span></h1><p className="text-slate-400 font-medium text-sm tracking-wide mt-1">Registration & Check-In Desk</p></div>
@@ -618,6 +634,50 @@ export default function Home() {
             );
           })}
         </div>
+
+        {/* MODALS */}
+        {deletePerson && (
+          <DeleteConfirmationModal person={deletePerson} onConfirm={confirmDelete} onCancel={() => setDeletePerson(null)} />
+        )}
+
+        {reportPerson && (
+          <UserReportModal person={reportPerson} logs={historyLogs} onClose={() => setReportPerson(null)} onUpdate={handleUpdateProfile} />
+        )}
+
+        {showDailyAuditModal && (
+          <DailyAuditModal dailyAudit={dailyAudit} todaysTotal={todaysTotal} onClose={() => setShowDailyAuditModal(false)} />
+        )}
+
+        {selectedPerson && (
+          <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-md p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-white">{modalMode === 'payment' ? 'Record Payment' : 'Check-In'}</h3>
+                <button onClick={() => setSelectedPerson(null)} className="text-white bg-white/10 hover:bg-white/20 rounded-full w-8 h-8">✕</button>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm text-slate-400">Name: <span className="text-white font-bold">{selectedPerson.full_name}</span></p>
+                <p className="text-sm text-slate-400">Phone: <span className="text-white">{selectedPerson.phone_number}</span></p>
+
+                {modalMode === 'payment' ? (
+                  <>
+                    <div><label className="text-xs text-slate-400">Amount</label><input type="number" value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} className="w-full mt-1 p-2 rounded bg-black/30 text-white border border-white/10" /></div>
+                    <div><label className="text-xs text-slate-400">Method</label><select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full mt-1 p-2 rounded bg-black/30 text-white border border-white/10"><option>Cash</option><option>MoMo</option></select></div>
+                    <div className="flex gap-2 mt-3"><button onClick={handleRecordPayment} disabled={processing} className="flex-1 py-2 bg-indigo-600 text-white rounded">{processing ? 'Processing...' : 'Record Payment'}</button><button onClick={() => setSelectedPerson(null)} className="flex-1 py-2 bg-white/5 text-white rounded">Cancel</button></div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-slate-400">Amount Paid: <span className="text-white font-bold">₵{selectedPerson.amount_paid || 0}</span></p>
+                    <div className="flex gap-2 mt-3"><button onClick={handleFinalCheckIn} disabled={processing || (selectedPerson.amount_paid < targetFee)} className="flex-1 py-2 bg-emerald-600 text-white rounded">{processing ? 'Processing...' : 'Admit'}</button><button onClick={() => setSelectedPerson(null)} className="flex-1 py-2 bg-white/5 text-white rounded">Cancel</button></div>
+                  </>
+                )}
+
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

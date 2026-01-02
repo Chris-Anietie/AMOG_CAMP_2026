@@ -1,0 +1,33 @@
+name: Playwright E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./amog-camp-system
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+        working-directory: ./amog-camp-system
+      - name: Build app
+        run: npm run build
+        working-directory: ./amog-camp-system
+      - name: Start app
+        run: npm start &
+        working-directory: ./amog-camp-system
+      - name: Run Playwright tests
+        run: npm run test:e2e --silent
+        working-directory: ./amog-camp-system
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
