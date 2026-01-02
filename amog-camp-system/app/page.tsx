@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeSVG } from 'qrcode.react';
 
 // --- CONFIGURATION ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -58,7 +58,7 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
-// --- TICKET MODAL WITH QR CODE ---
+// --- TICKET MODAL ---
 function TicketModal({ person, onClose }: any) {
     if (!person) return null;
     const qrData = `OFFICIAL GATE PASS\nName: ${person.full_name}\nGroup: ${person.grace_school || 'Not Assigned'}\nReceipt: #${person.receipt_no}\nSTATUS: PAID ✅`;
@@ -103,13 +103,13 @@ function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: any) {
     );
 }
 
-// --- UPDATED: MANAGER MODAL WITH STAFF AUDIT ---
+// --- MANAGER MODAL ---
 function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, supabase }: any) {
     const [pin, setPin] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [deletedUsers, setDeletedUsers] = useState<any[]>([]);
-    const [staffStats, setStaffStats] = useState<any[]>([]); 
-    const [activeTab, setActiveTab] = useState('desk'); 
+    const [staffStats, setStaffStats] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState('desk');
 
     useEffect(() => {
         if(isAuthenticated) {
@@ -141,7 +141,6 @@ function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, su
     }
 
     if (!isOpen) return null;
-
     if (!isAuthenticated) {
         return (
             <ModalBackdrop onClose={onClose}>
@@ -154,10 +153,7 @@ function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, su
     return (
         <ModalBackdrop onClose={onClose}>
             <div className="bg-[#1e293b] w-full max-w-3xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
-                <div className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-900/50 to-indigo-900/50 flex justify-between items-center">
-                    <div><h2 className="text-xl font-bold text-white">Manager Hub</h2><p className="text-indigo-200 text-xs">Operational Controls</p></div>
-                    <button type="button" onClick={onClose}><X className="w-6 h-6 text-slate-400 hover:text-white"/></button>
-                </div>
+                <div className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-900/50 to-indigo-900/50 flex justify-between items-center"><div><h2 className="text-xl font-bold text-white">Manager Hub</h2><p className="text-indigo-200 text-xs">Operational Controls</p></div><button type="button" onClick={onClose}><X className="w-6 h-6 text-slate-400 hover:text-white"/></button></div>
                 <div className="flex border-b border-white/5 p-1 bg-black/20">
                     <button onClick={() => setActiveTab('desk')} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'desk' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-white'}`}>Desk & Users</button>
                     <button onClick={() => setActiveTab('staff')} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'staff' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-white'}`}>👮 Staff Audit</button>
@@ -228,7 +224,7 @@ function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
                     {activeTab === 'details' ? (
                         <div className="space-y-6">
                             <div className="grid grid-cols-2 gap-3"><div className="bg-black/20 rounded-xl p-3 border border-white/5"><p className="text-[10px] uppercase text-slate-500 font-bold">Total Paid</p><p className="text-xl font-mono font-bold text-white">₵{person.amount_paid}</p></div><div className="bg-black/20 rounded-xl p-3 border border-white/5"><p className="text-[10px] uppercase text-slate-500 font-bold">Group</p><p className="text-lg font-bold text-indigo-300">{person.grace_school || 'N/A'}</p></div></div>
-                            {isEditing ? (<div className="space-y-4 animate-in fade-in"><div><label className="text-xs text-slate-400 block mb-1">Full Name</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.full_name} onChange={e => setEditData({...editData, full_name: e.target.value})} /></div><div><label className="text-xs text-slate-400 block mb-1">Phone</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.phone_number} onChange={e => setEditData({...editData, phone_number: e.target.value})} /></div><button onClick={handleSave} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl mt-2">Save Changes</button></div>) : (<div className="bg-white/5 rounded-xl border border-white/5 p-4 space-y-3"><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Branch</span><span className="text-white text-sm">{person.branch}</span></div><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Role</span><span className="text-white text-sm">{person.role}</span></div><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Gender</span><span className="text-white text-sm">{person.gender || 'N/A'}</span></div><div className="flex justify-between"><span className="text-slate-400 text-sm">Status</span><span className={`text-sm font-bold ${balance <= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{balance <= 0 ? 'PAID' : 'OWING'}</span></div><button type="button" onClick={() => setIsEditing(true)} className="w-full mt-4 py-2 border border-white/10 hover:bg-white/5 text-indigo-300 text-xs font-bold uppercase rounded-lg transition-all">Edit Profile</button></div>)}
+                            {isEditing ? (<div className="space-y-4 animate-in fade-in"><div><label className="text-xs text-slate-400 block mb-1">Full Name</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.full_name} onChange={e => setEditData({...editData, full_name: e.target.value})} /></div><div><label className="text-xs text-slate-400 block mb-1">Phone</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.phone_number} onChange={e => setEditData({...editData, phone_number: e.target.value})} /></div><div><label className="text-xs text-slate-400 block mb-1">Branch</label><select className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.branch} onChange={e => setEditData({...editData, branch: e.target.value})}><option value="">Select Branch</option>{CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}</select></div><button onClick={handleSave} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl mt-2">Save Changes</button></div>) : (<div className="bg-white/5 rounded-xl border border-white/5 p-4 space-y-3"><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Branch</span><span className="text-white text-sm">{person.branch}</span></div><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Role</span><span className="text-white text-sm">{person.role}</span></div><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Gender</span><span className="text-white text-sm">{person.gender || 'N/A'}</span></div><div className="flex justify-between"><span className="text-slate-400 text-sm">Status</span><span className={`text-sm font-bold ${balance <= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{balance <= 0 ? 'PAID' : 'OWING'}</span></div><button type="button" onClick={() => setIsEditing(true)} className="w-full mt-4 py-2 border border-white/10 hover:bg-white/5 text-indigo-300 text-xs font-bold uppercase rounded-lg transition-all">Edit Profile</button></div>)}
                         </div>
                     ) : (
                         <div className="space-y-4">{loadingLogs ? <p className="text-center text-slate-500 text-xs">Loading logs...</p> : logs.length === 0 ? <p className="text-center text-slate-500 text-xs italic">No activity recorded.</p> : logs.map((log, i) => (<div key={i} className="relative pl-6 pb-2 border-l border-white/10 last:border-0"><div className="absolute left-[-5px] top-0 w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-lg shadow-indigo-500/50"></div><p className="text-white text-sm font-medium">{log.action_type}</p><p className="text-slate-400 text-xs mt-1 leading-relaxed">{log.details}</p><p className="text-[10px] text-indigo-400/50 mt-1">{log.staff_email} • {new Date(log.created_at).toLocaleDateString()}</p></div>))}</div>
@@ -543,7 +539,18 @@ export default function Home() {
   }
 
   const stats = useMemo(() => ({ checkedIn: people.filter(p => p.checked_in).length, cash: people.reduce((s, p) => s + (p.cash_amount || 0), 0), momo: people.reduce((s, p) => s + (p.momo_amount || 0), 0), groups: GRACE_SCHOOLS.map(g => ({ name: g, count: people.filter(p => p.grace_school === g).length })) }), [people]);
-  const filtered = people.filter(p => { const matchSearch = p.full_name.toLowerCase().includes(search.toLowerCase()) || p.phone_number.includes(search); const matchBranch = branchFilter ? p.branch === branchFilter : true; let matchFilter = true; if(filter === 'paid') matchFilter = p.amount_paid >= REG_FEE; if(filter === 'owing') matchFilter = p.amount_paid < REG_FEE; if(filter === 'checked_in') matchFilter = p.checked_in; return matchSearch && matchBranch && matchFilter; });
+  const filtered = people.filter(p => { 
+      // FIXED: Added robust check for null/undefined fields
+      const matchSearch = (p.full_name || '').toLowerCase().includes(search.toLowerCase()) || (p.phone_number || '').includes(search); 
+      // FIXED: Case-insensitive Branch Filter + Trim to handle " Guest " vs "Guest"
+      const matchBranch = branchFilter ? (p.branch || '').toLowerCase().trim() === branchFilter.toLowerCase().trim() : true; 
+      
+      let matchFilter = true; 
+      if(filter === 'paid') matchFilter = p.amount_paid >= REG_FEE; 
+      if(filter === 'owing') matchFilter = p.amount_paid < REG_FEE; 
+      if(filter === 'checked_in') matchFilter = p.checked_in; 
+      return matchSearch && matchBranch && matchFilter; 
+  });
 
   if (!session) return (
 <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 relative overflow-hidden font-sans">
@@ -639,7 +646,8 @@ export default function Home() {
                 <div className="flex gap-2 overflow-x-auto pb-1">
                      <button type="button" onClick={() => !deskLocked ? setIsRegistering(true) : showToast("Desk Locked", "error")} className={`px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all active:scale-95 ${deskLocked ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20'}`}><Plus className="w-5 h-5"/> New Camper</button>
                      <button type="button" onClick={downloadCSV} className="bg-emerald-600/20 hover:bg-emerald-600/40 px-4 py-3 rounded-2xl text-emerald-300 font-bold border border-emerald-500/30 flex items-center gap-2"><Download className="w-5 h-5"/></button>
-                     <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="bg-white/5 border border-white/10 text-slate-300 rounded-2xl px-4 py-3 outline-none focus:border-indigo-500 appearance-none"><option value="">All Branches</option>{CHURCH_BRANCHES.map(b => <option key={b} className="bg-slate-900">{b}</option>)}</select>
+                     {/* FIXED: Added value={b} to option to fix filtering issues */}
+                     <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="bg-white/5 border border-white/10 text-slate-300 rounded-2xl px-4 py-3 outline-none focus:border-indigo-500 appearance-none"><option value="">All Branches</option>{CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}</select>
                 </div>
             </div>
 
