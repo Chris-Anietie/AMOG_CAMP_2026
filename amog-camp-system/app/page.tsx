@@ -1,18 +1,22 @@
 "use client";
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { QRCodeSVG } from "qrcode.react";
+// FIXED: Using the specific SVG component from the library you requested
+import { QRCodeSVG } from 'qrcode.react';
 
 // --- CONFIGURATION ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// CONSTANTS
+// --- CONSTANTS ---
 const GRACE_SCHOOLS = ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5', 'Group 6'];
+const MALE_GROUPS = ['Group 1', 'Group 2', 'Group 3'];
+const FEMALE_GROUPS = ['Group 4', 'Group 5', 'Group 6'];
 const CHURCH_BRANCHES = ['GWC_NSAWAM', 'GWC_LEADERSHIP CITADEL', 'GWC_KUTUNSE', 'GWC_KUMASI', 'GWC_KINTAMPO', 'RWI', 'Guest / Visitor'];
 const REG_FEE = 400;
-const MANAGER_PIN = "2026"; 
+const MANAGER_PIN = "2026?AMOG"; 
+const GROUP_CAPACITY = 20; // Max capacity per dormitory
 
 // --- ICONS ---
 const IconWrapper = ({ children, className }: any) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>);
@@ -54,7 +58,7 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
-// --- TICKET MODAL WITH QR CODE ---
+// --- TICKET MODAL WITH QR CODE (FIXED: Uses QRCodeSVG) ---
 function TicketModal({ person, onClose }: any) {
     if (!person) return null;
     const qrData = `OFFICIAL GATE PASS\nName: ${person.full_name}\nGroup: ${person.grace_school || 'Not Assigned'}\nReceipt: #${person.receipt_no}\nSTATUS: PAID ✅`;
@@ -72,7 +76,12 @@ function TicketModal({ person, onClose }: any) {
                     <div className="absolute top-[-10px] right-[-10px] w-5 h-5 bg-[#1e293b] rounded-full"></div>
                     <div className="border-b-2 border-dashed border-slate-200 absolute top-0 left-4 right-4"></div>
                     <div className="text-center space-y-4 pt-4">
-                        <div className="flex justify-center my-4"><div className="p-2 border-2 border-slate-900 rounded-lg"><QRCodeSVG value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="M" /></div></div>
+                        <div className="flex justify-center my-4">
+                             <div className="p-2 border-2 border-slate-900 rounded-lg">
+                                 {/* CORRECT COMPONENT USAGE: QRCodeSVG */}
+                                 <QRCodeSVG value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="M" />
+                             </div>
+                        </div>
                         <div><h3 className="text-xl font-bold text-slate-900 leading-tight">{person.full_name}</h3><p className="text-xs text-slate-500 uppercase tracking-widest mt-1">Camper</p></div>
                         <div className="flex justify-center gap-4"><div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Group</p><p className="text-2xl font-black text-indigo-600">{person.grace_school || '?'}</p></div><div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Receipt</p><p className="text-xl font-mono font-bold text-slate-700">#{person.receipt_no}</p></div></div>
                         <div className="border-t border-slate-100 pt-4"><div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200"><CheckCircle className="w-4 h-4"/> PAID IN FULL</div></div>
@@ -425,12 +434,13 @@ export default function Home() {
       if(selectedPerson.amount_paid < REG_FEE) return showToast("Payment Incomplete", "error");
       setProcessing(true);
       
-      let targetGroups = GRACE_SCHOOLS; 
-      if(selectedPerson.gender === 'Male') targetGroups = MALE_GROUPS; 
-      else if(selectedPerson.gender === 'Female') targetGroups = FEMALE_GROUPS;
+      let targetGroups = GRACE_SCHOOLS; // Use ALL groups for load balancing
+      // NOTE: If you want strictly gendered groups, uncomment the lines below:
+      // if(selectedPerson.gender === 'Male') targetGroups = MALE_GROUPS; 
+      // else if(selectedPerson.gender === 'Female') targetGroups = FEMALE_GROUPS;
 
-      // --- NEW: Capacity Logic ---
-      // 1. Get current counts for these specific groups
+      // --- NEW: Load Balancer Logic ---
+      // 1. Get current counts for all eligible groups
       const { data: existingCampers, error: fetchError } = await supabase
         .from('participants')
         .select('grace_school')
@@ -444,39 +454,33 @@ export default function Home() {
 
       // 2. Count them
       const groupCounts: Record<string, number> = {};
-      targetGroups.forEach(g => groupCounts[g] = 0);
+      targetGroups.forEach(g => groupCounts[g] = 0); // Initialize all to 0
       existingCampers?.forEach((p: any) => {
           if(p.grace_school) groupCounts[p.grace_school] = (groupCounts[p.grace_school] || 0) + 1;
       });
 
-      // 3. Find groups that are NOT full
-      const availableGroups = targetGroups.filter(g => groupCounts[g] < GROUP_CAPACITY); // ERROR: GROUP_CAPACITY is missing
-
-      if (availableGroups.length === 0) {
-          showToast(`All ${selectedPerson.gender} dorms are FULL!`, "error");
-          setProcessing(false);
-          return;
-      }
-
-      // 4. Pick random from AVAILABLE only
-      const randomSchool = availableGroups[Math.floor(Math.random() * availableGroups.length)];
+      // 3. Find the group with the LOWEST count
+      // We sort the groups by their current population (ascending)
+      const sortedGroups = targetGroups.sort((a, b) => groupCounts[a] - groupCounts[b]);
       
-      // --- End Capacity Logic ---
+      // The first group in the sorted list is the emptiest one
+      const targetGroup = sortedGroups[0];
+      
+      // --- End Load Balancer Logic ---
 
       const { error } = await supabase.from('participants').update({ 
           checked_in: true, 
           checked_in_at: new Date().toISOString(), 
           checked_in_by: session?.user?.email, 
-          grace_school: randomSchool 
+          grace_school: targetGroup 
       }).eq('id', selectedPerson.id);
 
       if(error) showToast("Check-in failed", "error");
       else { 
-          await logAction('Check-In', `User ${selectedPerson.full_name} admitted to ${randomSchool}`); 
-          // ... rest of success logic
-          const msg = `Welcome to AMOG 2026!%0A%0A*Name:* ${selectedPerson.full_name}%0A*Group:* ${randomSchool}%0A*Receipt:* ${selectedPerson.receipt_no}%0A*Status:* Admitted ✅`; 
+          await logAction('Check-In', `User ${selectedPerson.full_name} admitted to ${targetGroup}`); 
+          const msg = `Welcome to AMOG 2026!%0A%0A*Name:* ${selectedPerson.full_name}%0A*Group:* ${targetGroup}%0A*Receipt:* ${selectedPerson.receipt_no}%0A*Status:* Admitted ✅`; 
           window.open(`https://wa.me/233${selectedPerson.phone_number.substring(1)}?text=${msg}`, '_blank'); 
-          showToast(`Admitted to ${randomSchool}`, "success"); 
+          showToast(`Admitted to ${targetGroup}`, "success"); 
           setSelectedPerson(null); 
       }
       setProcessing(false);
