@@ -13,9 +13,9 @@ const MALE_GROUPS = ['Group 1', 'Group 2', 'Group 3'];
 const FEMALE_GROUPS = ['Group 4', 'Group 5', 'Group 6'];
 const CHURCH_BRANCHES = ['GWC_NSAWAM', 'GWC_LEADERSHIP CITADEL', 'GWC_KUTUNSE', 'GWC_KUMASI', 'GWC_KINTAMPO', 'RWI', 'Guest / Visitor'];
 const REG_FEE = 400;
-const MANAGER_PIN = "2026"; // Change this PIN
+const MANAGER_PIN = "2026"; 
 
-// --- ICONS (Optimized) ---
+// --- ICONS ---
 const IconWrapper = ({ children, className }: any) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>);
 const Users = ({ className }: any) => <IconWrapper className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></IconWrapper>;
 const Coins = ({ className }: any) => <IconWrapper className={className}><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></IconWrapper>;
@@ -35,6 +35,7 @@ const Lock = ({ className }: any) => <IconWrapper className={className}><rect wi
 const Unlock = ({ className }: any) => <IconWrapper className={className}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></IconWrapper>;
 const RefreshCw = ({ className }: any) => <IconWrapper className={className}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconWrapper>;
 const Download = ({ className }: any) => <IconWrapper className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconWrapper>;
+const Ticket = ({ className }: any) => <IconWrapper className={className}><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></IconWrapper>;
 
 // --- COMPONENT: MODAL BACKDROP ---
 const ModalBackdrop = ({ children, onClose }: { children: React.ReactNode, onClose: () => void }) => (
@@ -53,7 +54,62 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
-// --- RESTORED: DAILY AUDIT MODAL ---
+// --- NEW COMPONENT: TICKET MODAL ---
+function TicketModal({ person, onClose }: any) {
+    if (!person) return null;
+    return (
+        <ModalBackdrop onClose={onClose}>
+            <div className="bg-[#1e293b] w-full max-w-sm rounded-3xl border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 relative">
+                {/* Close Button */}
+                <button onClick={onClose} className="absolute top-4 right-4 z-10 bg-black/40 hover:bg-black/60 rounded-full p-1 text-white transition-all"><X className="w-5 h-5"/></button>
+                
+                {/* Ticket Header */}
+                <div className="bg-indigo-600 p-6 text-center pt-8 pb-8 relative overflow-hidden">
+                    <div className="absolute top-[-50px] left-[-50px] w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                    <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">AMOG 2026</h2>
+                    <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Official Gate Pass</p>
+                </div>
+
+                {/* Ticket Body with "Ripped" Effect */}
+                <div className="bg-white p-6 relative">
+                    {/* The "Ripped" circles */}
+                    <div className="absolute top-[-10px] left-[-10px] w-5 h-5 bg-[#1e293b] rounded-full"></div>
+                    <div className="absolute top-[-10px] right-[-10px] w-5 h-5 bg-[#1e293b] rounded-full"></div>
+                    <div className="border-b-2 border-dashed border-slate-200 absolute top-0 left-4 right-4"></div>
+
+                    <div className="text-center space-y-4 pt-2">
+                        <div>
+                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Camper Name</p>
+                            <h3 className="text-xl font-bold text-slate-900 leading-tight">{person.full_name}</h3>
+                        </div>
+                        
+                        <div className="flex justify-center gap-4">
+                            <div className="bg-slate-100 rounded-xl p-3 flex-1">
+                                <p className="text-[10px] text-slate-400 uppercase font-bold">Group</p>
+                                <p className="text-2xl font-black text-indigo-600">{person.grace_school || '?'}</p>
+                            </div>
+                            <div className="bg-slate-100 rounded-xl p-3 flex-1">
+                                <p className="text-[10px] text-slate-400 uppercase font-bold">Receipt</p>
+                                <p className="text-xl font-mono font-bold text-slate-700">#{person.receipt_no}</p>
+                            </div>
+                        </div>
+
+                        <div className="border-t border-slate-100 pt-4">
+                            <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Status</p>
+                            <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200">
+                                <CheckCircle className="w-4 h-4"/> PAID IN FULL
+                            </div>
+                        </div>
+                        
+                        <p className="text-[10px] text-slate-400 mt-2">Take a screenshot of this pass for entry.</p>
+                    </div>
+                </div>
+            </div>
+        </ModalBackdrop>
+    );
+}
+
+// --- RESTORED COMPONENTS (DailyAudit, Manager, etc) ---
 function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: any) {
     return (
         <ModalBackdrop onClose={onClose}>
@@ -63,203 +119,82 @@ function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: any) {
                     <button type="button" onClick={onClose} className="bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full text-white">✕</button>
                 </div>
                 <div className="p-6 space-y-4">
-                    <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/30 text-center">
-                        <p className="text-xs uppercase text-emerald-400 font-bold tracking-widest">Gross Revenue (Today)</p>
-                        <p className="text-4xl font-extrabold text-white mt-1">₵{todaysTotal}</p>
-                        <p className="text-xs text-slate-400 mt-2">{dailyAudit.count} transactions today</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-black/30 p-4 rounded-xl border border-white/10 text-center"><p className="text-xs uppercase text-slate-400 font-bold mb-1">Cash Drawer</p><p className="text-2xl font-mono font-bold text-white">₵{dailyAudit.cash}</p></div>
-                        <div className="bg-black/30 p-4 rounded-xl border border-white/10 text-center"><p className="text-xs uppercase text-slate-400 font-bold mb-1">MoMo Wallet</p><p className="text-2xl font-mono font-bold text-white">₵{dailyAudit.momo}</p></div>
-                    </div>
+                    <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/30 text-center"><p className="text-xs uppercase text-emerald-400 font-bold tracking-widest">Gross Revenue (Today)</p><p className="text-4xl font-extrabold text-white mt-1">₵{todaysTotal}</p><p className="text-xs text-slate-400 mt-2">{dailyAudit.count} transactions today</p></div>
+                    <div className="grid grid-cols-2 gap-4"><div className="bg-black/30 p-4 rounded-xl border border-white/10 text-center"><p className="text-xs uppercase text-slate-400 font-bold mb-1">Cash Drawer</p><p className="text-2xl font-mono font-bold text-white">₵{dailyAudit.cash}</p></div><div className="bg-black/30 p-4 rounded-xl border border-white/10 text-center"><p className="text-xs uppercase text-slate-400 font-bold mb-1">MoMo Wallet</p><p className="text-2xl font-mono font-bold text-white">₵{dailyAudit.momo}</p></div></div>
                 </div>
             </div>
         </ModalBackdrop>
     );
 }
 
-// --- NEW COMPONENT: MANAGER MODAL ---
 function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, supabase }: any) {
     const [pin, setPin] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [deletedUsers, setDeletedUsers] = useState<any[]>([]);
-
-    useEffect(() => {
-        if(isAuthenticated) {
-            supabase.from('participants').select('*').eq('is_deleted', true).order('created_at', {ascending: false})
-            .then(({data}: any) => setDeletedUsers(data || []));
-        }
-    }, [isAuthenticated, supabase]);
-
+    useEffect(() => { if(isAuthenticated) { supabase.from('participants').select('*').eq('is_deleted', true).order('created_at', {ascending: false}).then(({data}: any) => setDeletedUsers(data || [])); } }, [isAuthenticated, supabase]);
     if (!isOpen) return null;
-
     if (!isAuthenticated) {
         return (
             <ModalBackdrop onClose={onClose}>
                 <div className="bg-[#1e293b] w-full max-w-sm rounded-3xl border border-white/10 p-6 text-center animate-in zoom-in-95">
-                    <div className="w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-4"><Lock className="w-6 h-6"/></div>
-                    <h3 className="text-lg font-bold text-white mb-2">Manager Access</h3>
-                    <p className="text-slate-400 text-xs mb-4">Enter PIN to manage desk & restore users.</p>
-                    <input type="password" className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white text-center text-lg tracking-widest outline-none focus:border-indigo-500" placeholder="••••" value={pin} onChange={e => setPin(e.target.value)} />
-                    <button type="button" onClick={() => { if(pin === MANAGER_PIN) setIsAuthenticated(true); else alert('Invalid PIN'); }} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-4">Unlock Panel</button>
+                    <div className="w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-4"><Lock className="w-6 h-6"/></div><h3 className="text-lg font-bold text-white mb-2">Manager Access</h3><p className="text-slate-400 text-xs mb-4">Enter PIN to manage desk & restore users.</p><input type="password" className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white text-center text-lg tracking-widest outline-none focus:border-indigo-500" placeholder="••••" value={pin} onChange={e => setPin(e.target.value)} /><button type="button" onClick={() => { if(pin === MANAGER_PIN) setIsAuthenticated(true); else alert('Invalid PIN'); }} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-4">Unlock Panel</button>
                 </div>
             </ModalBackdrop>
         );
     }
-
     return (
         <ModalBackdrop onClose={onClose}>
             <div className="bg-[#1e293b] w-full max-w-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
-                <div className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-900/50 to-indigo-900/50 flex justify-between items-center">
-                    <div><h2 className="text-xl font-bold text-white">Manager Hub</h2><p className="text-indigo-200 text-xs">Operational Controls</p></div>
-                    <button type="button" onClick={onClose}><X className="w-6 h-6 text-slate-400 hover:text-white"/></button>
-                </div>
-                
+                <div className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-900/50 to-indigo-900/50 flex justify-between items-center"><div><h2 className="text-xl font-bold text-white">Manager Hub</h2><p className="text-indigo-200 text-xs">Operational Controls</p></div><button type="button" onClick={onClose}><X className="w-6 h-6 text-slate-400 hover:text-white"/></button></div>
                 <div className="p-6 overflow-y-auto custom-scrollbar space-y-8">
-                    {/* DESK CONTROL */}
-                    <div className="bg-white/5 border border-white/5 rounded-2xl p-5 flex items-center justify-between">
-                        <div>
-                            <h3 className="text-sm font-bold text-white">Desk Status</h3>
-                            <p className={`text-xs mt-1 font-bold ${deskLocked ? 'text-red-400' : 'text-emerald-400'}`}>{deskLocked ? '🔴 LOCKED (Read Only)' : '🟢 ACTIVE (Registration Open)'}</p>
-                        </div>
-                        <button type="button" onClick={onToggleLock} className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${deskLocked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-red-600 text-white hover:bg-red-500'}`}>
-                            {deskLocked ? <><Unlock className="w-4 h-4"/> Unlock Desk</> : <><Lock className="w-4 h-4"/> Lock Desk</>}
-                        </button>
-                    </div>
-
-                    {/* RESTORE DELETED */}
-                    <div>
-                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Trash2 className="w-4 h-4"/> Trash Bin (Soft Deleted)</h3>
-                        <div className="space-y-2">
-                            {deletedUsers.length === 0 ? <p className="text-slate-500 text-xs italic">Trash bin is empty.</p> : 
-                             deletedUsers.map(u => (
-                                <div key={u.id} className="flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5">
-                                    <div><p className="text-white text-sm font-bold">{u.full_name}</p><p className="text-xs text-slate-500">{u.phone_number} • ₵{u.amount_paid}</p></div>
-                                    <button type="button" onClick={() => { onRestore(u.id); setDeletedUsers(prev => prev.filter(x => x.id !== u.id)); }} className="bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1"><RefreshCw className="w-3 h-3"/> Restore</button>
-                                </div>
-                             ))
-                            }
-                        </div>
-                    </div>
+                    <div className="bg-white/5 border border-white/5 rounded-2xl p-5 flex items-center justify-between"><div><h3 className="text-sm font-bold text-white">Desk Status</h3><p className={`text-xs mt-1 font-bold ${deskLocked ? 'text-red-400' : 'text-emerald-400'}`}>{deskLocked ? '🔴 LOCKED (Read Only)' : '🟢 ACTIVE (Registration Open)'}</p></div><button type="button" onClick={onToggleLock} className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${deskLocked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-red-600 text-white hover:bg-red-500'}`}>{deskLocked ? <><Unlock className="w-4 h-4"/> Unlock Desk</> : <><Lock className="w-4 h-4"/> Lock Desk</>}</button></div>
+                    <div><h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Trash2 className="w-4 h-4"/> Trash Bin (Soft Deleted)</h3><div className="space-y-2">{deletedUsers.length === 0 ? <p className="text-slate-500 text-xs italic">Trash bin is empty.</p> : deletedUsers.map(u => (<div key={u.id} className="flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5"><div><p className="text-white text-sm font-bold">{u.full_name}</p><p className="text-xs text-slate-500">{u.phone_number} • ₵{u.amount_paid}</p></div><button type="button" onClick={() => { onRestore(u.id); setDeletedUsers(prev => prev.filter(x => x.id !== u.id)); }} className="bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1"><RefreshCw className="w-3 h-3"/> Restore</button></div>))}</div></div>
                 </div>
             </div>
         </ModalBackdrop>
     );
 }
 
-// --- REGISTRATION MODAL ---
 function RegistrationModal({ isOpen, onClose, onRegister, processing }: any) {
   const [data, setData] = useState({ full_name: '', phone_number: '', role: 'Member', branch: '', gender: 'Male', t_shirt: 'L', t_shirt_color: 'White', invited_by: '', contact_type: 'WhatsApp', location: '', wants_tshirt: false });
   if (!isOpen) return null;
   return (
     <ModalBackdrop onClose={onClose}>
       <div className="bg-[#1e293b] w-full max-w-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-white/10 bg-white/5 flex justify-between items-center">
-          <div><h2 className="text-xl font-bold text-white tracking-tight">New Registration</h2><p className="text-indigo-300 text-xs font-medium">Add a new camper to the database</p></div>
-          <button type="button" onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
-        </div>
+        <div className="p-6 border-b border-white/10 bg-white/5 flex justify-between items-center"><div><h2 className="text-xl font-bold text-white tracking-tight">New Registration</h2><p className="text-indigo-300 text-xs font-medium">Add a new camper to the database</p></div><button type="button" onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors"><X className="w-6 h-6" /></button></div>
         <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Personal Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="group"><label className="text-xs font-medium text-slate-300 mb-1.5 block">Full Name</label><div className="relative"><User className="absolute left-3 top-3 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" /><input type="text" className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-600" placeholder="John Doe" value={data.full_name} onChange={e => setData({ ...data, full_name: e.target.value })} /></div></div>
-              <div className="group"><label className="text-xs font-medium text-slate-300 mb-1.5 block">Phone Number</label><div className="relative"><Smartphone className="absolute left-3 top-3 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" /><input type="tel" className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-600" placeholder="024 XXX XXXX" value={data.phone_number} onChange={e => setData({ ...data, phone_number: e.target.value })} /></div></div>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Logistics & Role</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="text-xs font-medium text-slate-300 mb-1.5 block">Branch</label><select className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 px-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none appearance-none" value={data.branch} onChange={e => setData({ ...data, branch: e.target.value })}><option value="">Select Branch...</option>{CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}</select></div>
-              <div><label className="text-xs font-medium text-slate-300 mb-1.5 block">Gender (For Room Allocation)</label><div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">{['Male', 'Female'].map(g => (<button key={g} type="button" onClick={() => setData({ ...data, gender: g })} className={`flex-1 text-xs font-bold py-2 rounded-lg transition-all ${data.gender === g ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>{g}</button>))}</div></div>
-            </div>
-            <div><label className="text-xs font-medium text-slate-300 mb-1.5 block">Role</label><div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">{['Member', 'Leader', 'Pastor', 'Guest'].map(r => (<button key={r} type="button" onClick={() => setData({ ...data, role: r })} className={`flex-1 text-xs font-bold py-2 rounded-lg transition-all ${data.role === r ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>{r}</button>))}</div></div>
-          </div>
-          <div className="bg-indigo-900/10 border border-indigo-500/20 rounded-2xl p-4">
-            <div className="flex justify-between items-center mb-4"><h3 className="text-sm font-bold text-indigo-200 flex items-center gap-2">Camp T-Shirt <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30">OPTIONAL</span></h3><label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={data.wants_tshirt} onChange={e => setData({ ...data, wants_tshirt: e.target.checked })} /><div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div></label></div>
-            {data.wants_tshirt && (<div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 fade-in"><div><label className="text-xs font-medium text-indigo-300 mb-1.5 block">Size</label><select className="w-full bg-slate-900/50 border border-indigo-500/30 rounded-xl py-2 px-3 text-white outline-none" value={data.t_shirt} onChange={e => setData({ ...data, t_shirt: e.target.value })}>{['S', 'M', 'L', 'XL', 'XXL', '3XL'].map(s => <option key={s} className="bg-slate-900">{s}</option>)}</select></div><div><label className="text-xs font-medium text-indigo-300 mb-1.5 block">Color Preference</label><input type="text" className="w-full bg-slate-900/50 border border-indigo-500/30 rounded-xl py-2 px-3 text-white outline-none placeholder:text-slate-600" placeholder="e.g. White" value={data.t_shirt_color} onChange={e => setData({ ...data, t_shirt_color: e.target.value })} /></div></div>)}
-          </div>
+          <div className="space-y-4"><h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Personal Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="group"><label className="text-xs font-medium text-slate-300 mb-1.5 block">Full Name</label><div className="relative"><User className="absolute left-3 top-3 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" /><input type="text" className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-600" placeholder="John Doe" value={data.full_name} onChange={e => setData({ ...data, full_name: e.target.value })} /></div></div><div className="group"><label className="text-xs font-medium text-slate-300 mb-1.5 block">Phone Number</label><div className="relative"><Smartphone className="absolute left-3 top-3 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" /><input type="tel" className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-600" placeholder="024 XXX XXXX" value={data.phone_number} onChange={e => setData({ ...data, phone_number: e.target.value })} /></div></div></div></div>
+          <div className="space-y-4"><h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Logistics & Role</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-xs font-medium text-slate-300 mb-1.5 block">Branch</label><select className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 px-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none appearance-none" value={data.branch} onChange={e => setData({ ...data, branch: e.target.value })}><option value="">Select Branch...</option>{CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}</select></div><div><label className="text-xs font-medium text-slate-300 mb-1.5 block">Gender (For Room Allocation)</label><div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">{['Male', 'Female'].map(g => (<button key={g} type="button" onClick={() => setData({ ...data, gender: g })} className={`flex-1 text-xs font-bold py-2 rounded-lg transition-all ${data.gender === g ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>{g}</button>))}</div></div></div><div><label className="text-xs font-medium text-slate-300 mb-1.5 block">Role</label><div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">{['Member', 'Leader', 'Pastor', 'Guest'].map(r => (<button key={r} type="button" onClick={() => setData({ ...data, role: r })} className={`flex-1 text-xs font-bold py-2 rounded-lg transition-all ${data.role === r ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>{r}</button>))}</div></div></div>
+          <div className="bg-indigo-900/10 border border-indigo-500/20 rounded-2xl p-4"><div className="flex justify-between items-center mb-4"><h3 className="text-sm font-bold text-indigo-200 flex items-center gap-2">Camp T-Shirt <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30">OPTIONAL</span></h3><label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={data.wants_tshirt} onChange={e => setData({ ...data, wants_tshirt: e.target.checked })} /><div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div></label></div>{data.wants_tshirt && (<div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 fade-in"><div><label className="text-xs font-medium text-indigo-300 mb-1.5 block">Size</label><select className="w-full bg-slate-900/50 border border-indigo-500/30 rounded-xl py-2 px-3 text-white outline-none" value={data.t_shirt} onChange={e => setData({ ...data, t_shirt: e.target.value })}>{['S', 'M', 'L', 'XL', 'XXL', '3XL'].map(s => <option key={s} className="bg-slate-900">{s}</option>)}</select></div><div><label className="text-xs font-medium text-indigo-300 mb-1.5 block">Color Preference</label><input type="text" className="w-full bg-slate-900/50 border border-indigo-500/30 rounded-xl py-2 px-3 text-white outline-none placeholder:text-slate-600" placeholder="e.g. White" value={data.t_shirt_color} onChange={e => setData({ ...data, t_shirt_color: e.target.value })} /></div></div>)}</div>
         </div>
-        <div className="p-6 border-t border-white/10 bg-slate-900/50 flex gap-3">
-          <button type="button" onClick={onClose} className="flex-1 py-3.5 bg-transparent border border-white/10 hover:bg-white/5 text-slate-300 font-bold rounded-xl transition-all">Cancel</button>
-          <button onClick={() => onRegister(data)} disabled={processing} className="flex-[2] py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-900/20 transition-all flex items-center justify-center gap-2">{processing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Plus className="w-5 h-5" /> Register Camper</>}</button>
-        </div>
+        <div className="p-6 border-t border-white/10 bg-slate-900/50 flex gap-3"><button type="button" onClick={onClose} className="flex-1 py-3.5 bg-transparent border border-white/10 hover:bg-white/5 text-slate-300 font-bold rounded-xl transition-all">Cancel</button><button onClick={() => onRegister(data)} disabled={processing} className="flex-[2] py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-900/20 transition-all flex items-center justify-center gap-2">{processing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Plus className="w-5 h-5" /> Register Camper</>}</button></div>
       </div>
     </ModalBackdrop>
   );
 }
 
-// --- USER REPORT MODAL ---
 function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
     const [activeTab, setActiveTab] = useState('details');
     const [isEditing, setIsEditing] = useState(false);
     const [editData, setEditData] = useState({ ...person });
     const [logs, setLogs] = useState<any[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(true);
-
-    useEffect(() => {
-      async function fetchUserLogs() {
-        setLoadingLogs(true);
-        const { data } = await supabase.from('audit_logs').select('*').or(`details.ilike.%${person.full_name}%,details.ilike.%${person.phone_number}%`).order('created_at', { ascending: false });
-        setLogs(data || []);
-        setLoadingLogs(false);
-      }
-      if (person) fetchUserLogs();
-    }, [person, supabase]);
-
+    useEffect(() => { async function fetchUserLogs() { setLoadingLogs(true); const { data } = await supabase.from('audit_logs').select('*').or(`details.ilike.%${person.full_name}%,details.ilike.%${person.phone_number}%`).order('created_at', { ascending: false }); setLogs(data || []); setLoadingLogs(false); } if (person) fetchUserLogs(); }, [person, supabase]);
     const handleSave = () => { onUpdate(editData); setIsEditing(false); };
     const balance = REG_FEE - (person.amount_paid || 0);
-
     return (
         <ModalBackdrop onClose={onClose}>
             <div className="bg-[#1e293b] w-full max-w-lg rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95">
-                <div className="p-6 bg-gradient-to-r from-slate-900 to-indigo-950/50 border-b border-white/10 flex justify-between items-start">
-                    <div className="flex gap-4">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold shadow-inner ${balance <= 0 ? 'bg-emerald-500 text-white shadow-emerald-900/20' : 'bg-amber-500 text-white shadow-amber-900/20'}`}>{person.full_name.charAt(0)}</div>
-                        <div><h2 className="text-xl font-bold text-white leading-tight">{person.full_name}</h2><p className="text-slate-400 text-sm mt-0.5 flex items-center gap-2"><Smartphone className="w-3 h-3"/> {person.phone_number}</p><p className="text-[10px] text-indigo-400 font-mono mt-1">RCPT #: {person.receipt_no || '---'}</p></div>
-                    </div>
-                    <button type="button" onClick={onClose} className="p-1 hover:bg-white/10 rounded-full text-slate-400"><X className="w-6 h-6"/></button>
-                </div>
-                <div className="flex border-b border-white/5 bg-white/5 p-1">
-                   <button type="button" onClick={() => setActiveTab('details')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'details' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Profile</button>
-                   <button type="button" onClick={() => setActiveTab('logs')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'logs' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Audit Logs</button>
-                </div>
+                <div className="p-6 bg-gradient-to-r from-slate-900 to-indigo-950/50 border-b border-white/10 flex justify-between items-start"><div className="flex gap-4"><div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold shadow-inner ${balance <= 0 ? 'bg-emerald-500 text-white shadow-emerald-900/20' : 'bg-amber-500 text-white shadow-amber-900/20'}`}>{person.full_name.charAt(0)}</div><div><h2 className="text-xl font-bold text-white leading-tight">{person.full_name}</h2><p className="text-slate-400 text-sm mt-0.5 flex items-center gap-2"><Smartphone className="w-3 h-3"/> {person.phone_number}</p><p className="text-[10px] text-indigo-400 font-mono mt-1">RCPT #: {person.receipt_no || '---'}</p></div></div><button type="button" onClick={onClose} className="p-1 hover:bg-white/10 rounded-full text-slate-400"><X className="w-6 h-6"/></button></div>
+                <div className="flex border-b border-white/5 bg-white/5 p-1"><button type="button" onClick={() => setActiveTab('details')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'details' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Profile</button><button type="button" onClick={() => setActiveTab('logs')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'logs' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Audit Logs</button></div>
                 <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
                     {activeTab === 'details' ? (
                         <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-black/20 rounded-xl p-3 border border-white/5"><p className="text-[10px] uppercase text-slate-500 font-bold">Total Paid</p><p className="text-xl font-mono font-bold text-white">₵{person.amount_paid}</p></div>
-                                <div className="bg-black/20 rounded-xl p-3 border border-white/5"><p className="text-[10px] uppercase text-slate-500 font-bold">Group</p><p className="text-lg font-bold text-indigo-300">{person.grace_school || 'N/A'}</p></div>
-                            </div>
-                            {isEditing ? (
-                                <div className="space-y-4 animate-in fade-in">
-                                    <div><label className="text-xs text-slate-400 block mb-1">Full Name</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.full_name} onChange={e => setEditData({...editData, full_name: e.target.value})} /></div>
-                                    <div><label className="text-xs text-slate-400 block mb-1">Phone</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.phone_number} onChange={e => setEditData({...editData, phone_number: e.target.value})} /></div>
-                                    <button onClick={handleSave} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl mt-2">Save Changes</button>
-                                </div>
-                            ) : (
-                                <div className="bg-white/5 rounded-xl border border-white/5 p-4 space-y-3">
-                                    <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Branch</span><span className="text-white text-sm">{person.branch}</span></div>
-                                    <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Role</span><span className="text-white text-sm">{person.role}</span></div>
-                                    <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Gender</span><span className="text-white text-sm">{person.gender || 'N/A'}</span></div>
-                                    <div className="flex justify-between"><span className="text-slate-400 text-sm">Status</span><span className={`text-sm font-bold ${balance <= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{balance <= 0 ? 'PAID' : 'OWING'}</span></div>
-                                    <button type="button" onClick={() => setIsEditing(true)} className="w-full mt-4 py-2 border border-white/10 hover:bg-white/5 text-indigo-300 text-xs font-bold uppercase rounded-lg transition-all">Edit Profile</button>
-                                </div>
-                            )}
+                            <div className="grid grid-cols-2 gap-3"><div className="bg-black/20 rounded-xl p-3 border border-white/5"><p className="text-[10px] uppercase text-slate-500 font-bold">Total Paid</p><p className="text-xl font-mono font-bold text-white">₵{person.amount_paid}</p></div><div className="bg-black/20 rounded-xl p-3 border border-white/5"><p className="text-[10px] uppercase text-slate-500 font-bold">Group</p><p className="text-lg font-bold text-indigo-300">{person.grace_school || 'N/A'}</p></div></div>
+                            {isEditing ? (<div className="space-y-4 animate-in fade-in"><div><label className="text-xs text-slate-400 block mb-1">Full Name</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.full_name} onChange={e => setEditData({...editData, full_name: e.target.value})} /></div><div><label className="text-xs text-slate-400 block mb-1">Phone</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.phone_number} onChange={e => setEditData({...editData, phone_number: e.target.value})} /></div><button onClick={handleSave} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl mt-2">Save Changes</button></div>) : (<div className="bg-white/5 rounded-xl border border-white/5 p-4 space-y-3"><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Branch</span><span className="text-white text-sm">{person.branch}</span></div><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Role</span><span className="text-white text-sm">{person.role}</span></div><div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Gender</span><span className="text-white text-sm">{person.gender || 'N/A'}</span></div><div className="flex justify-between"><span className="text-slate-400 text-sm">Status</span><span className={`text-sm font-bold ${balance <= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{balance <= 0 ? 'PAID' : 'OWING'}</span></div><button type="button" onClick={() => setIsEditing(true)} className="w-full mt-4 py-2 border border-white/10 hover:bg-white/5 text-indigo-300 text-xs font-bold uppercase rounded-lg transition-all">Edit Profile</button></div>)}
                         </div>
                     ) : (
-                        <div className="space-y-4">
-                             {loadingLogs ? <p className="text-center text-slate-500 text-xs">Loading logs...</p> : 
-                              logs.length === 0 ? <p className="text-center text-slate-500 text-xs italic">No activity recorded.</p> :
-                              logs.map((log, i) => (
-                                <div key={i} className="relative pl-6 pb-2 border-l border-white/10 last:border-0">
-                                    <div className="absolute left-[-5px] top-0 w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-lg shadow-indigo-500/50"></div>
-                                    <p className="text-white text-sm font-medium">{log.action_type}</p>
-                                    <p className="text-slate-400 text-xs mt-1 leading-relaxed">{log.details}</p>
-                                    <p className="text-[10px] text-indigo-400/50 mt-1">{log.staff_email} • {new Date(log.created_at).toLocaleDateString()}</p>
-                                </div>
-                              ))
-                             }
-                        </div>
+                        <div className="space-y-4">{loadingLogs ? <p className="text-center text-slate-500 text-xs">Loading logs...</p> : logs.length === 0 ? <p className="text-center text-slate-500 text-xs italic">No activity recorded.</p> : logs.map((log, i) => (<div key={i} className="relative pl-6 pb-2 border-l border-white/10 last:border-0"><div className="absolute left-[-5px] top-0 w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-lg shadow-indigo-500/50"></div><p className="text-white text-sm font-medium">{log.action_type}</p><p className="text-slate-400 text-xs mt-1 leading-relaxed">{log.details}</p><p className="text-[10px] text-indigo-400/50 mt-1">{log.staff_email} • {new Date(log.created_at).toLocaleDateString()}</p></div>))}</div>
                     )}
                 </div>
             </div>
@@ -276,12 +211,13 @@ export default function Home() {
   const [branchFilter, setBranchFilter] = useState('');
   const [isOnline, setIsOnline] = useState(true);
   const [deskLocked, setDeskLocked] = useState(false);
-  const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); // RESTORED
-  const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 }); // RESTORED
-  const [todaysTotal, setTodaysTotal] = useState(0); // RESTORED
+  const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); 
+  const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 }); 
+  const [todaysTotal, setTodaysTotal] = useState(0); 
   
   const [isRegistering, setIsRegistering] = useState(false);
   const [showManager, setShowManager] = useState(false);
+  const [ticketPerson, setTicketPerson] = useState<any>(null); // NEW: Ticket Modal
   const [reportPerson, setReportPerson] = useState<any>(null);
   const [selectedPerson, setSelectedPerson] = useState<any>(null);
   const [modalMode, setModalMode] = useState<'payment' | 'checkin'>('payment');
@@ -322,7 +258,6 @@ export default function Home() {
       if(data) setDeskLocked(data.is_locked);
   }
 
-  // --- RESTORED: AUDIT LOGIC ---
   async function calculateTodaysTotal() {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
@@ -336,7 +271,6 @@ export default function Home() {
     setTodaysTotal(sum);
   }
 
-  // --- RESTORED: RUN DAILY AUDIT ---
   async function runDailyAudit() {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase.from('audit_logs').select('details').gte('created_at', today).ilike('action_type', '%Payment%');
@@ -357,7 +291,6 @@ export default function Home() {
     setShowDailyAuditModal(true);
   }
 
-  // --- RESTORED: CSV DOWNLOAD ---
   const downloadCSV = () => {
     const headers = ['Full Name', 'Role', 'Branch', 'Phone', 'Status', 'Total Paid', 'Cash Paid', 'MoMo Paid', 'T-Shirt', 'School', 'Receipt No'];
     const csvRows = [headers.join(',')];
@@ -455,7 +388,6 @@ export default function Home() {
         <header className="sticky top-0 z-50 bg-[#0f172a]/80 backdrop-blur-lg border-b border-white/5 px-4 py-3 flex justify-between items-center">
             <div className="flex items-center gap-3"><div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/20">A</div><div><h1 className="font-bold text-lg leading-none">AMOG <span className="text-indigo-400">2026</span></h1><div className="flex items-center gap-2 mt-0.5"><p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Help Desk</p>{deskLocked && <span className="bg-red-500/20 border border-red-500/50 text-red-300 text-[9px] px-1.5 rounded uppercase font-bold animate-pulse">LOCKED</span>}</div></div></div>
             <div className="flex gap-2">
-                {/* RESTORED: Clickable Total */}
                 <div onClick={runDailyAudit} className="bg-purple-900/40 backdrop-blur-md px-3 py-2 rounded-xl border border-purple-500/30 text-center cursor-pointer hover:bg-purple-900/60 transition-all flex items-center gap-2 mr-2"><span className="text-[10px] uppercase text-purple-300 font-bold tracking-wider">Today: </span><span className="text-sm font-bold text-white">₵{todaysTotal}</span></div>
                 <button type="button" onClick={() => setShowManager(true)} className="bg-indigo-600/20 hover:bg-indigo-600/40 p-2.5 rounded-xl text-indigo-300 hover:text-white transition-all border border-indigo-500/30"><Lock className="w-5 h-5"/></button>
                 <button type="button" onClick={() => supabase.auth.signOut()} className="bg-white/5 hover:bg-white/10 p-2.5 rounded-xl text-slate-400 hover:text-red-400 transition-all border border-white/5"><LogOut className="w-5 h-5"/></button>
@@ -475,7 +407,6 @@ export default function Home() {
                 <div className="flex-1 relative group"><Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors"/><input type="text" placeholder="Search campers..." value={search} onChange={e => setSearch(e.target.value)} className="w-full bg-white/5 hover:bg-white/10 focus:bg-black/40 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-white outline-none focus:border-indigo-500/50 transition-all"/></div>
                 <div className="flex gap-2 overflow-x-auto pb-1">
                      <button type="button" onClick={() => !deskLocked ? setIsRegistering(true) : showToast("Desk Locked", "error")} className={`px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all active:scale-95 ${deskLocked ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20'}`}><Plus className="w-5 h-5"/> New Camper</button>
-                     {/* RESTORED: Export Button */}
                      <button type="button" onClick={downloadCSV} className="bg-emerald-600/20 hover:bg-emerald-600/40 px-4 py-3 rounded-2xl text-emerald-300 font-bold border border-emerald-500/30 flex items-center gap-2"><Download className="w-5 h-5"/></button>
                      <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)} className="bg-white/5 border border-white/10 text-slate-300 rounded-2xl px-4 py-3 outline-none focus:border-indigo-500 appearance-none"><option value="">All Branches</option>{CHURCH_BRANCHES.map(b => <option key={b} className="bg-slate-900">{b}</option>)}</select>
                 </div>
@@ -490,7 +421,17 @@ export default function Home() {
                         <div key={p.id} onClick={() => setReportPerson(p)} className="bg-white/5 backdrop-blur-md border border-white/5 rounded-3xl p-5 hover:bg-white/10 hover:border-white/10 transition-all cursor-pointer group active:scale-[0.98]">
                             <div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-lg text-white leading-tight">{p.full_name}</h3><p className="text-xs text-slate-400 mt-1">{p.branch} • {p.role}</p></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${isCheckedIn ? 'bg-indigo-500/20 text-indigo-400' : (isOwing ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400')}`}>{isCheckedIn ? <CheckCircle className="w-4 h-4"/> : (isOwing ? <AlertCircle className="w-4 h-4"/> : <CheckCircle className="w-4 h-4"/>)}</div></div>
                             <div className="mb-4">{isCheckedIn ? (<div className="bg-indigo-900/20 border border-indigo-500/20 rounded-xl p-3 text-center"><p className="text-[10px] uppercase text-indigo-300 font-bold tracking-widest">Admitted To</p><p className="text-xl font-bold text-white">{p.grace_school}</p></div>) : (<div className="flex items-baseline gap-1"><span className="text-2xl font-bold text-white font-mono">₵{p.amount_paid}</span><span className="text-xs text-slate-500 font-medium">/ ₵{REG_FEE}</span>{isOwing && <span className="ml-auto text-[10px] font-bold bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">OWING ₵{balance}</span>}</div>)}<p className="text-[9px] text-slate-600 font-mono mt-2 text-right">RCPT-{p.receipt_no}</p></div>
-                            <div className="flex gap-2" onClick={e => e.stopPropagation()}><button type="button" onClick={() => { if(!deskLocked) { setSelectedPerson(p); setModalMode('payment'); } else showToast("Desk Locked", "error") }} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border border-white/5 transition-colors flex items-center justify-center gap-2 ${deskLocked ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-white/5 hover:bg-white/10 text-slate-200'}`}><Coins className="w-3 h-3"/> Pay</button>{!isCheckedIn && (<button type="button" onClick={() => { if(!deskLocked) { setSelectedPerson(p); setModalMode('checkin'); } else showToast("Desk Locked", "error") }} disabled={isOwing} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${isOwing || deskLocked ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}><LogOut className="w-3 h-3 rotate-180"/> Admit</button>)}<button type="button" onClick={() => initiateDelete(p)} className="px-3 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-slate-500 rounded-xl transition-all border border-white/5"><Trash2 className="w-4 h-4"/></button></div>
+                            <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                                <button type="button" onClick={() => { if(!deskLocked) { setSelectedPerson(p); setModalMode('payment'); } else showToast("Desk Locked", "error") }} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border border-white/5 transition-colors flex items-center justify-center gap-2 ${deskLocked ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-white/5 hover:bg-white/10 text-slate-200'}`}><Coins className="w-3 h-3"/> Pay</button>
+                                {!isCheckedIn && (<button type="button" onClick={() => { if(!deskLocked) { setSelectedPerson(p); setModalMode('checkin'); } else showToast("Desk Locked", "error") }} disabled={isOwing} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${isOwing || deskLocked ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}><LogOut className="w-3 h-3 rotate-180"/> Admit</button>)}
+                                
+                                {/* NEW: Ticket Button - Only shows if Paid */}
+                                {!isOwing && (
+                                    <button type="button" onClick={() => setTicketPerson(p)} className="px-3 bg-indigo-600/20 hover:bg-indigo-600 hover:text-white text-indigo-300 rounded-xl transition-all border border-indigo-500/30"><Ticket className="w-4 h-4"/></button>
+                                )}
+                                
+                                <button type="button" onClick={() => initiateDelete(p)} className="px-3 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-slate-500 rounded-xl transition-all border border-white/5"><Trash2 className="w-4 h-4"/></button>
+                            </div>
                         </div>
                     );
                 })}
@@ -501,6 +442,9 @@ export default function Home() {
         <RegistrationModal isOpen={isRegistering} onClose={() => setIsRegistering(false)} onRegister={handleRegister} processing={processing} />
         {reportPerson && <UserReportModal person={reportPerson} onClose={() => setReportPerson(null)} onUpdate={fetchPeople} supabase={supabase} />}
         {showDailyAuditModal && <DailyAuditModal dailyAudit={dailyAudit} todaysTotal={todaysTotal} onClose={() => setShowDailyAuditModal(false)} />}
+        
+        {/* NEW: Ticket Modal */}
+        {ticketPerson && <TicketModal person={ticketPerson} onClose={() => setTicketPerson(null)} />}
         
         {selectedPerson && (
             <ModalBackdrop onClose={() => setSelectedPerson(null)}>
