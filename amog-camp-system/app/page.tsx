@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
-// THIS IMPORT MUST MATCH THE INSTALLED PACKAGE
 import { QRCodeSVG } from "qrcode.react";
 
 // --- CONFIGURATION ---
@@ -11,8 +10,6 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // CONSTANTS
 const GRACE_SCHOOLS = ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5', 'Group 6'];
-const MALE_GROUPS = ['Group 1', 'Group 2', 'Group 3'];
-const FEMALE_GROUPS = ['Group 4', 'Group 5', 'Group 6'];
 const CHURCH_BRANCHES = ['GWC_NSAWAM', 'GWC_LEADERSHIP CITADEL', 'GWC_KUTUNSE', 'GWC_KUMASI', 'GWC_KINTAMPO', 'RWI', 'Guest / Visitor'];
 const REG_FEE = 400;
 const MANAGER_PIN = "2026"; 
@@ -427,11 +424,61 @@ export default function Home() {
       if(deskLocked) return showToast("Desk is LOCKED.", "error");
       if(selectedPerson.amount_paid < REG_FEE) return showToast("Payment Incomplete", "error");
       setProcessing(true);
+      
       let targetGroups = GRACE_SCHOOLS; 
-      if(selectedPerson.gender === 'Male') targetGroups = MALE_GROUPS; else if(selectedPerson.gender === 'Female') targetGroups = FEMALE_GROUPS;
-      const randomSchool = targetGroups[Math.floor(Math.random() * targetGroups.length)];
-      const { error } = await supabase.from('participants').update({ checked_in: true, checked_in_at: new Date().toISOString(), checked_in_by: session?.user?.email, grace_school: randomSchool }).eq('id', selectedPerson.id);
-      if(error) showToast("Check-in failed", "error"); else { await logAction('Check-In', `User ${selectedPerson.full_name} admitted to ${randomSchool}`); const msg = `Welcome to AMOG 2026!%0A%0A*Name:* ${selectedPerson.full_name}%0A*Group:* ${randomSchool}%0A*Receipt:* ${selectedPerson.receipt_no}%0A*Status:* Admitted ✅`; window.open(`https://wa.me/233${selectedPerson.phone_number.substring(1)}?text=${msg}`, '_blank'); showToast(`Admitted to ${randomSchool}`, "success"); setSelectedPerson(null); }
+      if(selectedPerson.gender === 'Male') targetGroups = MALE_GROUPS; 
+      else if(selectedPerson.gender === 'Female') targetGroups = FEMALE_GROUPS;
+
+      // --- NEW: Capacity Logic ---
+      // 1. Get current counts for these specific groups
+      const { data: existingCampers, error: fetchError } = await supabase
+        .from('participants')
+        .select('grace_school')
+        .in('grace_school', targetGroups);
+      
+      if(fetchError) {
+          showToast("Failed to check capacity", "error");
+          setProcessing(false);
+          return;
+      }
+
+      // 2. Count them
+      const groupCounts: Record<string, number> = {};
+      targetGroups.forEach(g => groupCounts[g] = 0);
+      existingCampers?.forEach((p: any) => {
+          if(p.grace_school) groupCounts[p.grace_school] = (groupCounts[p.grace_school] || 0) + 1;
+      });
+
+      // 3. Find groups that are NOT full
+      const availableGroups = targetGroups.filter(g => groupCounts[g] < GROUP_CAPACITY); // ERROR: GROUP_CAPACITY is missing
+
+      if (availableGroups.length === 0) {
+          showToast(`All ${selectedPerson.gender} dorms are FULL!`, "error");
+          setProcessing(false);
+          return;
+      }
+
+      // 4. Pick random from AVAILABLE only
+      const randomSchool = availableGroups[Math.floor(Math.random() * availableGroups.length)];
+      
+      // --- End Capacity Logic ---
+
+      const { error } = await supabase.from('participants').update({ 
+          checked_in: true, 
+          checked_in_at: new Date().toISOString(), 
+          checked_in_by: session?.user?.email, 
+          grace_school: randomSchool 
+      }).eq('id', selectedPerson.id);
+
+      if(error) showToast("Check-in failed", "error");
+      else { 
+          await logAction('Check-In', `User ${selectedPerson.full_name} admitted to ${randomSchool}`); 
+          // ... rest of success logic
+          const msg = `Welcome to AMOG 2026!%0A%0A*Name:* ${selectedPerson.full_name}%0A*Group:* ${randomSchool}%0A*Receipt:* ${selectedPerson.receipt_no}%0A*Status:* Admitted ✅`; 
+          window.open(`https://wa.me/233${selectedPerson.phone_number.substring(1)}?text=${msg}`, '_blank'); 
+          showToast(`Admitted to ${randomSchool}`, "success"); 
+          setSelectedPerson(null); 
+      }
       setProcessing(false);
   }
 
