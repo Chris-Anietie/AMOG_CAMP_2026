@@ -38,13 +38,12 @@ const Edit = ({ className }: any) => <IconWrapper className={className}><path d=
 const X = ({ className }: any) => <IconWrapper className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconWrapper>;
 const Smartphone = ({ className }: any) => <IconWrapper className={className}><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></IconWrapper>;
 
-// --- UPDATED MODAL BACKDROP (Fix 1: Stops bubbling) ---
+// --- UPDATED MODAL BACKDROP ---
 const ModalBackdrop = ({ children, onClose }: { children: React.ReactNode, onClose: () => void }) => (
   <div 
     className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
-    onClick={onClose} // Clicking the background closes the modal
+    onClick={onClose} 
   >
-    {/* This inner div catches the click and stops it from reaching the background */}
     <div onClick={(e) => e.stopPropagation()} className="w-full flex justify-center">
       {children}
     </div>
@@ -66,7 +65,7 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
-// --- NEW REGISTRATION MODAL UI ---
+// --- REGISTRATION MODAL ---
 function RegistrationModal({ isOpen, onClose, onRegister, processing }: any) {
   const [data, setData] = useState({
     full_name: '', phone_number: '', role: 'Member', branch: '',
@@ -84,7 +83,6 @@ function RegistrationModal({ isOpen, onClose, onRegister, processing }: any) {
             <h2 className="text-xl font-bold text-white tracking-tight">New Registration</h2>
             <p className="text-indigo-300 text-xs font-medium">Add a new camper to the database</p>
           </div>
-          {/* Fix 2: Added type="button" */}
           <button type="button" onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
         </div>
 
@@ -128,7 +126,6 @@ function RegistrationModal({ isOpen, onClose, onRegister, processing }: any) {
                 <label className="text-xs font-medium text-slate-300 mb-1.5 block">Role</label>
                 <div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">
                   {['Member', 'Leader', 'Pastor', 'Guest'].map(r => (
-                    // Fix 2: Added type="button" to prevent form submission/closing
                     <button key={r} type="button" onClick={() => setData({ ...data, role: r })}
                       className={`flex-1 text-xs font-bold py-2 rounded-lg transition-all ${data.role === r ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
                       {r}
@@ -171,7 +168,6 @@ function RegistrationModal({ isOpen, onClose, onRegister, processing }: any) {
         </div>
 
         <div className="p-6 border-t border-white/10 bg-slate-900/50 flex gap-3">
-          {/* Fix 2: Added type="button" */}
           <button type="button" onClick={onClose} className="flex-1 py-3.5 bg-transparent border border-white/10 hover:bg-white/5 text-slate-300 font-bold rounded-xl transition-all">Cancel</button>
           <button onClick={() => onRegister(data)} disabled={processing} className="flex-[2] py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-900/20 transition-all flex items-center justify-center gap-2">
             {processing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Plus className="w-5 h-5" /> Complete Registration</>}
@@ -182,7 +178,7 @@ function RegistrationModal({ isOpen, onClose, onRegister, processing }: any) {
   );
 }
 
-// --- USER REPORT / PROFILE MODAL (FIXED LOGS) ---
+// --- USER REPORT / PROFILE MODAL ---
 function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
     const [activeTab, setActiveTab] = useState('details');
     const [isEditing, setIsEditing] = useState(false);
@@ -190,12 +186,9 @@ function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
     const [logs, setLogs] = useState<any[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(true);
 
-    // Fetch logs SPECIFIC to this user when modal opens
     useEffect(() => {
       async function fetchUserLogs() {
         setLoadingLogs(true);
-        // We match logs where details contain the name OR phone. 
-        // Note: Ideally, you'd add a participant_id column to audit_logs for exact matching.
         const { data } = await supabase.from('audit_logs')
           .select('*')
           .or(`details.ilike.%${person.full_name}%,details.ilike.%${person.phone_number}%`)
@@ -224,13 +217,11 @@ function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
                             <p className="text-slate-400 text-sm mt-0.5 flex items-center gap-2"><Smartphone className="w-3 h-3"/> {person.phone_number}</p>
                         </div>
                     </div>
-                    {/* Fix 2: Added type="button" */}
                     <button type="button" onClick={onClose} className="p-1 hover:bg-white/10 rounded-full text-slate-400"><X className="w-6 h-6"/></button>
                 </div>
 
                 {/* Tabs */}
                 <div className="flex border-b border-white/5 bg-white/5 p-1">
-                   {/* Fix 2: Added type="button" to tabs */}
                    <button type="button" onClick={() => setActiveTab('details')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'details' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Profile</button>
                    <button type="button" onClick={() => setActiveTab('logs')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'logs' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Audit Logs</button>
                 </div>
@@ -238,7 +229,6 @@ function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
                 <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
                     {activeTab === 'details' ? (
                         <div className="space-y-6">
-                            {/* Stats Cards */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="bg-black/20 rounded-xl p-3 border border-white/5">
                                     <p className="text-[10px] uppercase text-slate-500 font-bold">Total Paid</p>
@@ -250,7 +240,6 @@ function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
                                 </div>
                             </div>
 
-                            {/* Edit Form */}
                             {isEditing ? (
                                 <div className="space-y-4 animate-in fade-in">
                                     <div><label className="text-xs text-slate-400 block mb-1">Full Name</label><input className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white text-sm" value={editData.full_name} onChange={e => setEditData({...editData, full_name: e.target.value})} /></div>
@@ -269,7 +258,6 @@ function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
                                     <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">T-Shirt</span><span className="text-white text-sm">{person.t_shirt || 'None'}</span></div>
                                     <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-slate-400 text-sm">Role</span><span className="text-white text-sm">{person.role}</span></div>
                                     <div className="flex justify-between"><span className="text-slate-400 text-sm">Status</span><span className={`text-sm font-bold ${balance <= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{balance <= 0 ? 'PAID' : 'OWING'}</span></div>
-                                    {/* Fix 2: Added type="button" */}
                                     <button type="button" onClick={() => setIsEditing(true)} className="w-full mt-4 py-2 border border-white/10 hover:bg-white/5 text-indigo-300 text-xs font-bold uppercase rounded-lg transition-all">Edit Profile</button>
                                 </div>
                             )}
@@ -387,7 +375,8 @@ export default function Home() {
 
   async function handlePayment() {
       const amount = parseFloat(topUpAmount);
-      if(!amount || amount <= 0) return showToast("Enter valid amount", "warning");
+      // FIXED VALIDATION: Prevents negatives or zeros
+      if(!amount || amount <= 0) return showToast("Enter a valid positive amount", "warning");
       
       setProcessing(true);
       const currentCash = selectedPerson.cash_amount || 0;
@@ -541,7 +530,6 @@ export default function Home() {
             {/* FILTERS TABS */}
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                 {['all', 'owing', 'paid', 'checked_in'].map(f => (
-                    // Fix 2: Added type="button"
                     <button type="button" key={f} onClick={() => setFilter(f)} className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider border transition-all whitespace-nowrap ${filter === f ? 'bg-white text-slate-900 border-white' : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500'}`}>
                         {f.replace('_', ' ')}
                     </button>
@@ -583,12 +571,10 @@ export default function Home() {
                             </div>
 
                             <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                                {/* Fix 2: Added type="button" */}
                                 <button type="button" onClick={() => { setSelectedPerson(p); setModalMode('payment'); }} className="flex-1 bg-white/5 hover:bg-white/10 text-slate-200 py-2.5 rounded-xl text-xs font-bold border border-white/5 transition-colors flex items-center justify-center gap-2">
                                     <Coins className="w-3 h-3"/> Pay
                                 </button>
                                 {!isCheckedIn && (
-                                    // Fix 2: Added type="button"
                                     <button type="button" onClick={() => { setSelectedPerson(p); setModalMode('checkin'); }} disabled={isOwing} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${isOwing ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}>
                                         <LogOut className="w-3 h-3 rotate-180"/> Admit
                                     </button>
@@ -617,14 +603,30 @@ export default function Home() {
 
                     {modalMode === 'payment' ? (
                         <div className="space-y-3">
-                            <div><label className="text-xs text-slate-400 block mb-1">Top-up Amount</label><input type="number" className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white text-lg font-mono focus:border-indigo-500 outline-none" autoFocus value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} /></div>
+                            <div>
+                              <label className="text-xs text-slate-400 block mb-1">Top-up Amount</label>
+                              {/* FIX: Input restrictions for numbers only, no negatives */}
+                              <input 
+                                type="number" 
+                                min="0" 
+                                onKeyDown={(e) => {
+                                  // Prevents: - (minus), e (exponent), + (plus)
+                                  if (["-", "e", "E", "+"].includes(e.key)) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                                className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white text-lg font-mono focus:border-indigo-500 outline-none" 
+                                autoFocus 
+                                value={topUpAmount} 
+                                onChange={e => setTopUpAmount(e.target.value)} 
+                              />
+                            </div>
                             <div><label className="text-xs text-slate-400 block mb-1">Method</label><select className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}><option>Cash</option><option>MoMo</option></select></div>
                             <button onClick={handlePayment} disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-2">{processing ? 'Processing...' : 'Confirm Payment'}</button>
                         </div>
                     ) : (
                         <button onClick={handleAdmit} disabled={processing} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl">{processing ? 'Checking In...' : 'Confirm Admission'}</button>
                     )}
-                    {/* Fix 2: Added type="button" */}
                     <button type="button" onClick={() => setSelectedPerson(null)} className="w-full py-3 text-slate-500 font-bold text-xs mt-2 hover:text-white">Cancel</button>
                 </div>
             </ModalBackdrop>
