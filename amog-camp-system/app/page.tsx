@@ -648,6 +648,86 @@ export default function Home() {
           <DailyAuditModal dailyAudit={dailyAudit} todaysTotal={todaysTotal} onClose={() => setShowDailyAuditModal(false)} />
         )}
 
+        {isRegistering && (
+          <div className="fixed inset-0 z-[86] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-lg p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-white">New Registration</h3>
+                <button onClick={() => setIsRegistering(false)} className="text-white bg-white/10 hover:bg-white/20 rounded-full w-8 h-8">✕</button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-slate-400">Full Name</label>
+                  <input type="text" value={newReg.full_name} onChange={e => setNewReg({...newReg, full_name: e.target.value})} className="w-full mt-1 p-2 rounded bg-black/30 text-white border border-white/10" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400">Phone</label>
+                  <input type="text" value={newReg.phone_number} onChange={e => setNewReg({...newReg, phone_number: e.target.value})} className="w-full mt-1 p-2 rounded bg-black/30 text-white border border-white/10" placeholder="0244xxxxxxx" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-400">Role</label>
+                    <select value={newReg.role} onChange={e => setNewReg({...newReg, role: e.target.value})} className="w-full mt-1 p-2 rounded bg-black/30 text-white border border-white/10">
+                      <option>Member</option>
+                      <option>Leader</option>
+                      <option>Pastor</option>
+                      <option>Guest</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400">Branch</label>
+                    <select value={newReg.branch} onChange={e => setNewReg({...newReg, branch: e.target.value})} className="w-full mt-1 p-2 rounded bg-black/30 text-white border border-white/10">
+                      <option value="">Select Branch</option>
+                      {CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-400">Contact Method</label>
+                  <select value={newReg.contact_type} onChange={e => setNewReg({...newReg, contact_type: e.target.value})} className="w-full mt-1 p-2 rounded bg-black/30 text-white border border-white/10">
+                    <option>WhatsApp</option>
+                    <option>Phone</option>
+                    <option>Email</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-400">T-Shirt</label>
+                  <div className="flex items-center gap-3 mt-1">
+                    <label className="flex items-center gap-2"><input type="radio" name="tshirt" checked={wantsTShirt === 'no'} onChange={() => setWantsTShirt('no')} /> No</label>
+                    <label className="flex items-center gap-2"><input type="radio" name="tshirt" checked={wantsTShirt === 'yes'} onChange={() => setWantsTShirt('yes')} /> Yes</label>
+                  </div>
+                </div>
+
+                {wantsTShirt === 'yes' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-slate-400">Size</label>
+                      <select value={newReg.t_shirt} onChange={e => setNewReg({...newReg, t_shirt: e.target.value})} className="w-full mt-1 p-2 rounded bg-black/30 text-white border border-white/10">
+                        <option>L</option>
+                        <option>M</option>
+                        <option>S</option>
+                        <option>XL</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400">Color</label>
+                      <input type="text" value={newReg.t_shirt_color} onChange={e => setNewReg({...newReg, t_shirt_color: e.target.value})} className="w-full mt-1 p-2 rounded bg-black/30 text-white border border-white/10" />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 mt-3">
+                  <button onClick={handleNewRegistration} disabled={processing} className="flex-1 py-2 bg-indigo-600 text-white rounded">{processing ? 'Processing...' : 'Register'}</button>
+                  <button onClick={() => setIsRegistering(false)} className="flex-1 py-2 bg-white/5 text-white rounded">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {selectedPerson && (
           <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
             <div className="bg-[#1e293b] border border-white/10 rounded-3xl w-full max-w-md p-6">
