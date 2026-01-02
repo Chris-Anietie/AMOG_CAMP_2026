@@ -1,11 +1,8 @@
 "use client";
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
-<<<<<<< HEAD
+// THIS IMPORT MUST MATCH THE INSTALLED PACKAGE
 import { QRCodeSVG } from "qrcode.react";
-=======
-import QRCode from "react-qr-code"; 
->>>>>>> 613b915bdda672663822eecb6dd1463e9bcbdbb6
 
 // --- CONFIGURATION ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -78,11 +75,7 @@ function TicketModal({ person, onClose }: any) {
                     <div className="absolute top-[-10px] right-[-10px] w-5 h-5 bg-[#1e293b] rounded-full"></div>
                     <div className="border-b-2 border-dashed border-slate-200 absolute top-0 left-4 right-4"></div>
                     <div className="text-center space-y-4 pt-4">
-<<<<<<< HEAD
                         <div className="flex justify-center my-4"><div className="p-2 border-2 border-slate-900 rounded-lg"><QRCodeSVG value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="M" /></div></div>
-=======
-                        <div className="flex justify-center my-4"><div className="p-2 border-2 border-slate-900 rounded-lg"><QRCode value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="M" /></div></div>
->>>>>>> 613b915bdda672663822eecb6dd1463e9bcbdbb6
                         <div><h3 className="text-xl font-bold text-slate-900 leading-tight">{person.full_name}</h3><p className="text-xs text-slate-500 uppercase tracking-widest mt-1">Camper</p></div>
                         <div className="flex justify-center gap-4"><div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Group</p><p className="text-2xl font-black text-indigo-600">{person.grace_school || '?'}</p></div><div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Receipt</p><p className="text-xl font-mono font-bold text-slate-700">#{person.receipt_no}</p></div></div>
                         <div className="border-t border-slate-100 pt-4"><div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200"><CheckCircle className="w-4 h-4"/> PAID IN FULL</div></div>
@@ -220,6 +213,8 @@ export default function Home() {
   const [showDailyAuditModal, setShowDailyAuditModal] = useState(false); 
   const [dailyAudit, setDailyAudit] = useState({ cash: 0, momo: 0, count: 0 }); 
   const [todaysTotal, setTodaysTotal] = useState(0); 
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -440,12 +435,73 @@ export default function Home() {
       setProcessing(false);
   }
 
+  async function handleResetPassword() {
+    if (!resetEmail) return showToast("Please enter your email", "error");
+    setProcessing(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: window.location.origin, 
+    });
+    if (error) { showToast(error.message, "error"); } else { showToast("Check your email for the reset link!", "success"); setIsForgotPassword(false); }
+    setProcessing(false);
+  }
+
   const stats = useMemo(() => ({ checkedIn: people.filter(p => p.checked_in).length, cash: people.reduce((s, p) => s + (p.cash_amount || 0), 0), momo: people.reduce((s, p) => s + (p.momo_amount || 0), 0), groups: GRACE_SCHOOLS.map(g => ({ name: g, count: people.filter(p => p.grace_school === g).length })) }), [people]);
   const filtered = people.filter(p => { const matchSearch = p.full_name.toLowerCase().includes(search.toLowerCase()) || p.phone_number.includes(search); const matchBranch = branchFilter ? p.branch === branchFilter : true; let matchFilter = true; if(filter === 'paid') matchFilter = p.amount_paid >= REG_FEE; if(filter === 'owing') matchFilter = p.amount_paid < REG_FEE; if(filter === 'checked_in') matchFilter = p.checked_in; return matchSearch && matchBranch && matchFilter; });
 
   if (!session) return (
-    <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 relative overflow-hidden font-sans"><div className="absolute inset-0 z-0"><img src="/camp-bg.png" onError={(e) => e.currentTarget.src = "https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=2070&auto=format&fit=crop"} className="w-full h-full object-cover opacity-30" alt="Background" /></div><div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl w-full max-w-sm shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-500"><div className="text-center mb-8"><h1 className="text-4xl font-black text-white tracking-tighter">AMOG <span className="text-indigo-500">2026</span></h1><p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-2">Camp Staff Portal</p></div><form onSubmit={async (e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); const { error } = await supabase.auth.signInWithPassword({ email: fd.get('email') as string, password: fd.get('password') as string }); if(error) showToast('Invalid Credentials', 'error'); }} className="space-y-4"><input name="email" type="email" placeholder="Admin Email" className="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition-all" required /><input name="password" type="password" placeholder="••••••••" className="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition-all" required /><button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-900/30 transition-all">Access Dashboard</button></form></div>{toast && <Toast {...toast} onClose={() => setToast(null)} />}</div>
-  );
+<div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 relative overflow-hidden font-sans">
+    <div className="absolute inset-0 z-0">
+        <img src="/camp-bg.png" onError={(e) => e.currentTarget.src = "https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=2070&auto=format&fit=crop"} className="w-full h-full object-cover opacity-30" alt="Background" />
+    </div>
+    <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl w-full max-w-sm shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-500">
+        <div className="text-center mb-8">
+            <h1 className="text-4xl font-black text-white tracking-tighter">AMOG <span className="text-indigo-500">2026</span></h1>
+            <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-2">Camp Staff Portal</p>
+        </div>
+
+        {isForgotPassword ? (
+            <div className="space-y-4">
+                <div className="text-center mb-4">
+                    <h3 className="text-white font-bold">Reset Password</h3>
+                    <p className="text-slate-400 text-xs">Enter your email to receive a reset link.</p>
+                </div>
+                <input 
+                    type="email" 
+                    placeholder="Admin Email" 
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition-all" 
+                />
+                <button onClick={handleResetPassword} disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-900/30 transition-all">
+                    {processing ? 'Sending...' : 'Send Reset Link'}
+                </button>
+                <button onClick={() => setIsForgotPassword(false)} className="w-full text-slate-400 text-xs hover:text-white mt-2">
+                    Back to Login
+                </button>
+            </div>
+        ) : (
+            <form onSubmit={async (e) => { 
+                e.preventDefault(); 
+                const fd = new FormData(e.currentTarget); 
+                const { error } = await supabase.auth.signInWithPassword({ email: fd.get('email') as string, password: fd.get('password') as string }); 
+                if(error) showToast('Invalid Credentials', 'error'); 
+            }} className="space-y-4">
+                <input name="email" type="email" placeholder="Admin Email" className="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition-all" required />
+                <div className="relative">
+                    <input name="password" type="password" placeholder="••••••••" className="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition-all" required />
+                </div>
+                
+                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-900/30 transition-all">Access Dashboard</button>
+                
+                <button type="button" onClick={() => setIsForgotPassword(true)} className="w-full text-center text-xs text-indigo-300 hover:text-white mt-2">
+                    Forgot Password?
+                </button>
+            </form>
+        )}
+    </div>
+    {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+</div>
+);
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100 font-sans pb-20 relative overflow-x-hidden">
