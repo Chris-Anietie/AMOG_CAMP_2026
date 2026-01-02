@@ -38,7 +38,7 @@ const Edit = ({ className }: any) => <IconWrapper className={className}><path d=
 const X = ({ className }: any) => <IconWrapper className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconWrapper>;
 const Smartphone = ({ className }: any) => <IconWrapper className={className}><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></IconWrapper>;
 
-// --- UPDATED MODAL BACKDROP ---
+// --- MODAL BACKDROP ---
 const ModalBackdrop = ({ children, onClose }: { children: React.ReactNode, onClose: () => void }) => (
   <div 
     className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
@@ -446,7 +446,15 @@ export default function Home() {
   // --- LOGIN VIEW ---
   if (!session) return (
     <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 relative overflow-hidden font-sans">
-       <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=2070&auto=format&fit=crop')] bg-cover opacity-20"></div>
+       {/* FIXED BACKGROUND: Uses img tag + fallback instead of tailwind arbitrary value which can break */}
+       <div className="absolute inset-0 z-0">
+           <img 
+               src="/camp-bg.png" 
+               onError={(e) => e.currentTarget.src = "https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=2070&auto=format&fit=crop"}
+               className="w-full h-full object-cover opacity-30" 
+               alt="Background" 
+           />
+       </div>
        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl w-full max-w-sm shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-500">
            <div className="text-center mb-8">
                <h1 className="text-4xl font-black text-white tracking-tighter">AMOG <span className="text-indigo-500">2026</span></h1>
@@ -471,8 +479,17 @@ export default function Home() {
     <div className="min-h-screen bg-[#0f172a] text-slate-100 font-sans pb-20 relative overflow-x-hidden">
         {/* BACKGROUND */}
         <div className="fixed inset-0 pointer-events-none z-0">
-             <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/20 to-[#0f172a]"></div>
-             <div className="absolute top-0 left-0 right-0 h-[500px] bg-indigo-600/10 blur-[100px] rounded-full"></div>
+             {/* 1. The Image Layer with Fallback */}
+             <img 
+                src="/camp-bg.png" 
+                onError={(e) => e.currentTarget.src = "https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?q=80&w=2070&auto=format&fit=crop"}
+                className="absolute inset-0 w-full h-full object-cover opacity-20" // Low opacity so text pops
+                alt="Camp Background"
+             />
+             
+             {/* 2. The Gradient Overlays (Crucial for readability on top of image) */}
+             <div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-900/80 to-[#0f172a]"></div>
+             <div className="absolute top-0 left-0 right-0 h-[500px] bg-indigo-600/10 blur-[120px] rounded-full mix-blend-screen"></div>
         </div>
 
         {/* HEADER */}
@@ -605,12 +622,10 @@ export default function Home() {
                         <div className="space-y-3">
                             <div>
                               <label className="text-xs text-slate-400 block mb-1">Top-up Amount</label>
-                              {/* FIX: Input restrictions for numbers only, no negatives */}
                               <input 
                                 type="number" 
                                 min="0" 
                                 onKeyDown={(e) => {
-                                  // Prevents: - (minus), e (exponent), + (plus)
                                   if (["-", "e", "E", "+"].includes(e.key)) {
                                     e.preventDefault();
                                   }
