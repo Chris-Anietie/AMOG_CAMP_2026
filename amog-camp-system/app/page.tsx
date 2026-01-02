@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import QRCode from "react-qr-code"; 
+import { QRCodeSVG } from "qrcode.react";
 
 // --- CONFIGURATION ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -14,7 +14,7 @@ const MALE_GROUPS = ['Group 1', 'Group 2', 'Group 3'];
 const FEMALE_GROUPS = ['Group 4', 'Group 5', 'Group 6'];
 const CHURCH_BRANCHES = ['GWC_NSAWAM', 'GWC_LEADERSHIP CITADEL', 'GWC_KUTUNSE', 'GWC_KUMASI', 'GWC_KINTAMPO', 'RWI', 'Guest / Visitor'];
 const REG_FEE = 400;
-const MANAGER_PIN = "2026"; 
+const MANAGER_PIN = "2026?AMOG"; 
 
 // --- ICONS ---
 const IconWrapper = ({ children, className }: any) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>);
@@ -84,7 +84,7 @@ function TicketModal({ person, onClose }: any) {
                     <div className="text-center space-y-4 pt-4">
                         <div className="flex justify-center my-4">
                             <div className="p-2 border-2 border-slate-900 rounded-lg">
-                                <QRCode value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="H" />
+                                <QRCodeSVG value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="H" />
                             </div>
                         </div>
                         <div><h3 className="text-xl font-bold text-slate-900 leading-tight">{person.full_name}</h3><p className="text-xs text-slate-500 uppercase tracking-widest mt-1">Camper</p></div>
