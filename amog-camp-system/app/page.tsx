@@ -13,7 +13,7 @@ const GRACE_SCHOOLS = ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5', 'G
 const MALE_GROUPS = ['Group 1', 'Group 2', 'Group 3'];
 const FEMALE_GROUPS = ['Group 4', 'Group 5', 'Group 6'];
 const CHURCH_BRANCHES = ['GWC_NSAWAM', 'GWC_LEADERSHIP CITADEL', 'GWC_KUTUNSE', 'GWC_KUMASI', 'GWC_KINTAMPO', 'RWI', 'Guest / Visitor'];
-const REG_FEE = 400;
+const REG_FEE = 200;
 const MANAGER_PIN = "2026?AMOG"; 
 const GROUP_CAPACITY = 20;
 
