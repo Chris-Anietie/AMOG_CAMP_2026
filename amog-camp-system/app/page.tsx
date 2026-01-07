@@ -10,12 +10,18 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // CONSTANTS
 const GRACE_SCHOOLS = ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5', 'Group 6'];
-const MALE_GROUPS = ['Group 1', 'Group 2', 'Group 3'];
-const FEMALE_GROUPS = ['Group 4', 'Group 5', 'Group 6'];
 const CHURCH_BRANCHES = ['GWC_NSAWAM', 'GWC_LEADERSHIP CITADEL', 'GWC_KUTUNSE', 'GWC_KUMASI', 'GWC_KINTAMPO', 'RWI', 'Guest / Visitor'];
-const REG_FEE = 200;
+
+// --- FEES CONFIGURATION ---
+const REG_FEE_STANDARD = 400; // Normal Price
+const REG_FEE_SHS = 200;      // SHS Price (No Food)
 const MANAGER_PIN = "2026?AMOG"; 
 const GROUP_CAPACITY = 20;
+
+// HELPER: Determine Fee based on Role
+const getRequiredFee = (role: string) => {
+    return role === 'SHS Student' ? REG_FEE_SHS : REG_FEE_STANDARD;
+};
 
 // --- ICONS ---
 const IconWrapper = ({ children, className }: any) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>);
@@ -27,7 +33,6 @@ const Search = ({ className }: any) => <IconWrapper className={className}><circl
 const Plus = ({ className }: any) => <IconWrapper className={className}><path d="M5 12h14"/><path d="M12 5v14"/></IconWrapper>;
 const CheckCircle = ({ className }: any) => <IconWrapper className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></IconWrapper>;
 const AlertCircle = ({ className }: any) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></IconWrapper>;
-const HomeIcon = ({ className }: any) => <IconWrapper className={className}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></IconWrapper>;
 const User = ({ className }: any) => <IconWrapper className={className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></IconWrapper>;
 const Trash2 = ({ className }: any) => <IconWrapper className={className}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconWrapper>;
 const AlertTriangle = ({ className }: any) => <IconWrapper className={className}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></IconWrapper>;
@@ -42,6 +47,7 @@ const WifiOff = ({ className }: any) => <IconWrapper className={className}><line
 const Briefcase = ({ className }: any) => <IconWrapper className={className}><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></IconWrapper>;
 const Tool = ({ className }: any) => <IconWrapper className={className}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></IconWrapper>;
 const Undo = ({ className }: any) => <IconWrapper className={className}><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></IconWrapper>;
+const Coffee = ({ className }: any) => <IconWrapper className={className}><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></IconWrapper>;
 
 // --- COMPONENT: MODAL BACKDROP ---
 const ModalBackdrop = ({ children, onClose }: { children: React.ReactNode, onClose: () => void }) => (
@@ -60,18 +66,21 @@ function Toast({ msg, type, onClose }: { msg: string, type: 'success' | 'error' 
   );
 }
 
-// --- TICKET MODAL WITH QR CODE ---
+// --- TICKET MODAL WITH QR CODE & SHS LOGIC ---
 function TicketModal({ person, onClose }: any) {
     if (!person) return null;
-    const qrData = `OFFICIAL GATE PASS\nName: ${person.full_name}\nGroup: ${person.grace_school || 'Not Assigned'}\nReceipt: #${person.receipt_no}\nSTATUS: PAID ✅`;
+    const isSHS = person.role === 'SHS Student';
+    const qrData = `OFFICIAL GATE PASS\nName: ${person.full_name}\nRole: ${person.role}\nGroup: ${person.grace_school || 'Not Assigned'}\nReceipt: #${person.receipt_no}\nFOOD: ${isSHS ? 'NO COUPON' : 'STANDARD'}`;
+    
     return (
         <ModalBackdrop onClose={onClose}>
             <div className="bg-[#1e293b] w-full max-w-sm rounded-3xl border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 relative">
                 <button onClick={onClose} className="absolute top-4 right-4 z-10 bg-black/40 hover:bg-black/60 rounded-full p-1 text-white transition-all"><X className="w-5 h-5"/></button>
-                <div className="bg-indigo-600 p-6 text-center pt-8 pb-8 relative overflow-hidden">
+                <div className={`${isSHS ? 'bg-amber-600' : 'bg-indigo-600'} p-6 text-center pt-8 pb-8 relative overflow-hidden`}>
                     <div className="absolute top-[-50px] left-[-50px] w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
                     <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">AMOG 2026</h2>
-                    <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Official Gate Pass</p>
+                    <p className="text-white/80 text-xs font-bold uppercase tracking-widest mt-1">Official Gate Pass</p>
+                    {isSHS && <div className="absolute bottom-2 left-0 right-0 text-[10px] font-bold text-black bg-white/20 py-1">⚠️ SHS STUDENT - NO FOOD COUPONS</div>}
                 </div>
                 <div className="bg-white p-6 relative">
                     <div className="absolute top-[-10px] left-[-10px] w-5 h-5 bg-[#1e293b] rounded-full"></div>
@@ -79,9 +88,22 @@ function TicketModal({ person, onClose }: any) {
                     <div className="border-b-2 border-dashed border-slate-200 absolute top-0 left-4 right-4"></div>
                     <div className="text-center space-y-4 pt-4">
                         <div className="flex justify-center my-4"><div className="p-2 border-2 border-slate-900 rounded-lg"><QRCodeSVG value={qrData} size={120} fgColor="#0f172a" bgColor="#ffffff" level="M" /></div></div>
-                        <div><h3 className="text-xl font-bold text-slate-900 leading-tight">{person.full_name}</h3><p className="text-xs text-slate-500 uppercase tracking-widest mt-1">Camper</p></div>
+                        <div><h3 className="text-xl font-bold text-slate-900 leading-tight">{person.full_name}</h3><p className="text-xs text-slate-500 uppercase tracking-widest mt-1">{person.role}</p></div>
                         <div className="flex justify-center gap-4"><div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Group</p><p className="text-2xl font-black text-indigo-600">{person.grace_school || '?'}</p></div><div className="bg-slate-100 rounded-xl p-3 flex-1"><p className="text-[10px] text-slate-400 uppercase font-bold">Receipt</p><p className="text-xl font-mono font-bold text-slate-700">#{person.receipt_no}</p></div></div>
-                        <div className="border-t border-slate-100 pt-4"><div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200"><CheckCircle className="w-4 h-4"/> PAID IN FULL</div></div>
+                        
+                        {/* Status Section */}
+                        <div className="border-t border-slate-100 pt-4 space-y-2">
+                            <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-sm border border-emerald-200"><CheckCircle className="w-4 h-4"/> PAID ({person.amount_paid})</div>
+                            {isSHS ? (
+                                <div className="flex items-center justify-center gap-2 text-red-500 text-xs font-bold border border-red-100 bg-red-50 p-2 rounded-lg">
+                                    <Coffee className="w-3 h-3"/> NO MEAL SERVICE INCLUDED
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-center gap-2 text-slate-400 text-[10px]">
+                                    <Coffee className="w-3 h-3"/> Standard Meal Plan Active
+                                </div>
+                            )}
+                        </div>
                         <p className="text-[10px] text-slate-400 mt-2">Gate Security: Scan to verify details.</p>
                     </div>
                 </div>
@@ -105,14 +127,13 @@ function DailyAuditModal({ dailyAudit, todaysTotal, onClose }: any) {
     );
 }
 
-// --- UPDATED: MANAGER MODAL WITH FIX TOOLS ---
+// --- MANAGER MODAL ---
 function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, supabase }: any) {
     const [pin, setPin] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [deletedUsers, setDeletedUsers] = useState<any[]>([]);
     const [staffStats, setStaffStats] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState('desk');
-    // NEW: Search for Fixer
     const [fixSearch, setFixSearch] = useState('');
     const [fixResults, setFixResults] = useState<any[]>([]);
 
@@ -124,7 +145,6 @@ function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, su
         }
     }, [isAuthenticated, supabase]);
 
-    // NEW: Search Logic for Fixer
     useEffect(() => {
         if(fixSearch.length > 2 && isAuthenticated) {
              supabase.from('participants').select('*').ilike('full_name', `%${fixSearch}%`).limit(5)
@@ -138,7 +158,7 @@ function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, su
         if(!confirm("Warning: This will remove them from their room. Continue?")) return;
         await supabase.from('participants').update({ checked_in: false, grace_school: null }).eq('id', id);
         alert("User Un-Checked In.");
-        setFixSearch(''); // Clear to refresh
+        setFixSearch(''); 
     }
 
     async function handleFixPayment(id: any) {
@@ -251,7 +271,7 @@ function ManagerModal({ isOpen, onClose, deskLocked, onToggleLock, onRestore, su
     );
 }
 
-// --- REGISTRATION MODAL ---
+// --- REGISTRATION MODAL WITH SHS ROLE ---
 function RegistrationModal({ isOpen, onClose, onRegister, processing, isOffline }: any) {
   const [data, setData] = useState({ full_name: '', phone_number: '', role: 'Member', branch: '', gender: 'Male', t_shirt: 'L', t_shirt_color: 'White', invited_by: '', contact_type: 'WhatsApp', location: '', wants_tshirt: false });
   if (!isOpen) return null;
@@ -269,7 +289,27 @@ function RegistrationModal({ isOpen, onClose, onRegister, processing, isOffline 
         </div>
         <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
           <div className="space-y-4"><h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Personal Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="group"><label className="text-xs font-medium text-slate-300 mb-1.5 block">Full Name</label><div className="relative"><User className="absolute left-3 top-3 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" /><input type="text" className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-600" placeholder="John Doe" value={data.full_name} onChange={e => setData({ ...data, full_name: e.target.value })} /></div></div><div className="group"><label className="text-xs font-medium text-slate-300 mb-1.5 block">Phone Number</label><div className="relative"><Smartphone className="absolute left-3 top-3 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" /><input type="tel" className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-600" placeholder="024 XXX XXXX" value={data.phone_number} onChange={e => setData({ ...data, phone_number: e.target.value })} /></div></div></div></div>
-          <div className="space-y-4"><h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Logistics & Role</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-xs font-medium text-slate-300 mb-1.5 block">Branch</label><select className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 px-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none appearance-none" value={data.branch} onChange={e => setData({ ...data, branch: e.target.value })}><option value="">Select Branch...</option>{CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}</select></div><div><label className="text-xs font-medium text-slate-300 mb-1.5 block">Gender (For Room Allocation)</label><div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">{['Male', 'Female'].map(g => (<button key={g} type="button" onClick={() => setData({ ...data, gender: g })} className={`flex-1 text-xs font-bold py-2 rounded-lg transition-all ${data.gender === g ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>{g}</button>))}</div></div></div><div><label className="text-xs font-medium text-slate-300 mb-1.5 block">Role</label><div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">{['Member', 'Leader', 'Pastor', 'Guest'].map(r => (<button key={r} type="button" onClick={() => setData({ ...data, role: r })} className={`flex-1 text-xs font-bold py-2 rounded-lg transition-all ${data.role === r ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>{r}</button>))}</div></div></div>
+          <div className="space-y-4">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Logistics & Role</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                      <label className="text-xs font-medium text-slate-300 mb-1.5 block">Branch</label>
+                      <select className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 px-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none appearance-none" value={data.branch} onChange={e => setData({ ...data, branch: e.target.value })}><option value="">Select Branch...</option>{CHURCH_BRANCHES.map(b => <option key={b} value={b} className="bg-slate-900">{b}</option>)}</select>
+                    </div>
+                    <div>
+                        <label className="text-xs font-medium text-slate-300 mb-1.5 block">Gender (For Room Allocation)</label>
+                        <div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">{['Male', 'Female'].map(g => (<button key={g} type="button" onClick={() => setData({ ...data, gender: g })} className={`flex-1 text-xs font-bold py-2 rounded-lg transition-all ${data.gender === g ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>{g}</button>))}</div>
+                    </div>
+                </div>
+                <div>
+                    <label className="text-xs font-medium text-slate-300 mb-1.5 block">Role</label>
+                    <div className="flex flex-wrap gap-2 bg-slate-900/50 p-1.5 rounded-xl border border-white/10">
+                        {['Member', 'Leader', 'Pastor', 'Guest', 'SHS Student'].map(r => (
+                            <button key={r} type="button" onClick={() => setData({ ...data, role: r })} className={`flex-grow text-xs font-bold py-2 px-3 rounded-lg transition-all ${data.role === r ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>{r}</button>
+                        ))}
+                    </div>
+                </div>
+            </div>
           <div className="bg-indigo-900/10 border border-indigo-500/20 rounded-2xl p-4"><div className="flex justify-between items-center mb-4"><h3 className="text-sm font-bold text-indigo-200 flex items-center gap-2">Camp T-Shirt <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30">OPTIONAL</span></h3><label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={data.wants_tshirt} onChange={e => setData({ ...data, wants_tshirt: e.target.checked })} /><div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div></label></div>{data.wants_tshirt && (<div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 fade-in"><div><label className="text-xs font-medium text-indigo-300 mb-1.5 block">Size</label><select className="w-full bg-slate-900/50 border border-indigo-500/30 rounded-xl py-2 px-3 text-white outline-none" value={data.t_shirt} onChange={e => setData({ ...data, t_shirt: e.target.value })}>{['S', 'M', 'L', 'XL', 'XXL', '3XL'].map(s => <option key={s} className="bg-slate-900">{s}</option>)}</select></div><div><label className="text-xs font-medium text-indigo-300 mb-1.5 block">Color Preference</label><input type="text" className="w-full bg-slate-900/50 border border-indigo-500/30 rounded-xl py-2 px-3 text-white outline-none placeholder:text-slate-600" placeholder="e.g. White" value={data.t_shirt_color} onChange={e => setData({ ...data, t_shirt_color: e.target.value })} /></div></div>)}</div>
         </div>
         <div className="p-6 border-t border-white/10 bg-slate-900/50 flex gap-3"><button type="button" onClick={onClose} className="flex-1 py-3.5 bg-transparent border border-white/10 hover:bg-white/5 text-slate-300 font-bold rounded-xl transition-all">Cancel</button><button onClick={() => onRegister(data)} disabled={processing} className={`flex-[2] py-3.5 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${isOffline ? 'bg-amber-600 hover:bg-amber-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}>{processing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Plus className="w-5 h-5" /> {isOffline ? 'Save Offline' : 'Register Camper'}</>}</button></div>
@@ -286,7 +326,11 @@ function UserReportModal({ person, onClose, onUpdate, supabase }: any) {
     const [loadingLogs, setLoadingLogs] = useState(true);
     useEffect(() => { async function fetchUserLogs() { setLoadingLogs(true); const { data } = await supabase.from('audit_logs').select('*').or(`details.ilike.%${person.full_name}%,details.ilike.%${person.phone_number}%`).order('created_at', { ascending: false }); setLogs(data || []); setLoadingLogs(false); } if (person) fetchUserLogs(); }, [person, supabase]);
     const handleSave = () => { onUpdate(editData); setIsEditing(false); };
-    const balance = REG_FEE - (person.amount_paid || 0);
+    
+    // NEW FEE LOGIC
+    const requiredFee = getRequiredFee(person.role);
+    const balance = requiredFee - (person.amount_paid || 0);
+
     return (
         <ModalBackdrop onClose={onClose}>
             <div className="bg-[#1e293b] w-full max-w-lg rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95">
@@ -315,15 +359,15 @@ export default function Home() {
   const [filter, setFilter] = useState('all');
   const [branchFilter, setBranchFilter] = useState('');
   const [isOnline, setIsOnline] = useState(true);
-  const [offlineQueue, setOfflineQueue] = useState<any[]>([]); // NEW: Queue State
-  
+  const [offlineQueue, setOfflineQueue] = useState<any[]>([]); 
+   
   const [isRegistering, setIsRegistering] = useState(false);
   const [showManager, setShowManager] = useState(false);
   const [ticketPerson, setTicketPerson] = useState<any>(null); 
   const [reportPerson, setReportPerson] = useState<any>(null);
   const [selectedPerson, setSelectedPerson] = useState<any>(null);
   const [modalMode, setModalMode] = useState<'payment' | 'checkin'>('payment');
-  
+   
   const [topUpAmount, setTopUpAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [momoTransId, setMomoTransId] = useState('');
@@ -367,7 +411,7 @@ export default function Home() {
     };
   }, []);
 
-  // --- NEW: SYNC FUNCTION ---
+  // --- SYNC FUNCTION ---
   async function syncOfflineData() {
       if (offlineQueue.length === 0) return;
       if (!isOnline) return showToast("Still offline. Cannot sync.", "error");
@@ -376,8 +420,6 @@ export default function Home() {
       let successCount = 0;
       let failCount = 0;
       
-      // We loop through the queue and try to upload each
-      // Note: In production, bulk insert is better, but loop is safer for partial failures
       const newQueue = [...offlineQueue];
       
       for (let i = newQueue.length - 1; i >= 0; i--) {
@@ -496,7 +538,6 @@ export default function Home() {
     
     // --- OFFLINE LOGIC ---
     if(!isOnline) {
-        // Create the payload exactly as Supabase expects it
         const finalTShirt = data.wants_tshirt ? `${data.t_shirt} (${data.t_shirt_color})` : null;
         const offlinePayload = {
             full_name: data.full_name, phone_number: data.phone_number, role: data.role,
@@ -505,7 +546,6 @@ export default function Home() {
             gender: data.gender, created_at: new Date().toISOString()
         };
         
-        // Save to State & LocalStorage
         const updatedQueue = [...offlineQueue, offlinePayload];
         setOfflineQueue(updatedQueue);
         localStorage.setItem('offlineQueue', JSON.stringify(updatedQueue));
@@ -515,7 +555,7 @@ export default function Home() {
         return;
     }
     
-    // --- ONLINE LOGIC (Normal) ---
+    // --- ONLINE LOGIC ---
     setProcessing(true);
     const exists = people.find(p => p.phone_number === data.phone_number);
     if(exists) { setProcessing(false); return showToast("User already exists!", "error"); }
@@ -535,7 +575,10 @@ export default function Home() {
       let newCash = currentCash, newMoMo = currentMoMo;
       if(paymentMethod === 'Cash') newCash += amount; else newMoMo += amount;
       const total = newCash + newMoMo;
-      const status = total >= REG_FEE ? 'Paid' : 'Partial';
+      
+      const requiredFee = getRequiredFee(selectedPerson.role);
+      const status = total >= requiredFee ? 'Paid' : 'Partial';
+      
       const updateData: any = { amount_paid: total, cash_amount: newCash, momo_amount: newMoMo, payment_status: status };
       if(paymentMethod === 'MoMo') updateData.momo_transaction_id = momoTransId;
       const { error } = await supabase.from('participants').update(updateData).eq('id', selectedPerson.id);
@@ -545,16 +588,15 @@ export default function Home() {
 
   async function handleAdmit() {
       if(deskLocked) return showToast("Desk is LOCKED.", "error");
-      if(selectedPerson.amount_paid < REG_FEE) return showToast("Payment Incomplete", "error");
+      
+      const requiredFee = getRequiredFee(selectedPerson.role);
+      if(selectedPerson.amount_paid < requiredFee) return showToast(`Payment Incomplete. Need ₵${requiredFee}`, "error");
+      
       setProcessing(true);
       
-      let targetGroups = GRACE_SCHOOLS; // Use ALL groups for load balancing
-      // NOTE: If you want strictly gendered groups, uncomment the lines below:
-      // if(selectedPerson.gender === 'Male') targetGroups = MALE_GROUPS; 
-      // else if(selectedPerson.gender === 'Female') targetGroups = FEMALE_GROUPS;
-
-      // --- NEW: Load Balancer Logic ---
-      // 1. Get current counts for all eligible groups
+      let targetGroups = GRACE_SCHOOLS; 
+      
+      // --- Load Balancer Logic ---
       const { data: existingCampers, error: fetchError } = await supabase
         .from('participants')
         .select('grace_school')
@@ -566,22 +608,15 @@ export default function Home() {
           return;
       }
 
-      // 2. Count them
       const groupCounts: Record<string, number> = {};
-      targetGroups.forEach(g => groupCounts[g] = 0); // Initialize all to 0
+      targetGroups.forEach(g => groupCounts[g] = 0); 
       existingCampers?.forEach((p: any) => {
           if(p.grace_school) groupCounts[p.grace_school] = (groupCounts[p.grace_school] || 0) + 1;
       });
 
-      // 3. Find the group with the LOWEST count
-      // We sort the groups by their current population (ascending)
       const sortedGroups = targetGroups.sort((a, b) => groupCounts[a] - groupCounts[b]);
-      
-      // The first group in the sorted list is the emptiest one
       const targetGroup = sortedGroups[0];
       
-      // --- End Load Balancer Logic ---
-
       const { error } = await supabase.from('participants').update({ 
           checked_in: true, 
           checked_in_at: new Date().toISOString(), 
@@ -611,7 +646,18 @@ export default function Home() {
   }
 
   const stats = useMemo(() => ({ checkedIn: people.filter(p => p.checked_in).length, cash: people.reduce((s, p) => s + (p.cash_amount || 0), 0), momo: people.reduce((s, p) => s + (p.momo_amount || 0), 0), groups: GRACE_SCHOOLS.map(g => ({ name: g, count: people.filter(p => p.grace_school === g).length })) }), [people]);
-  const filtered = people.filter(p => { const matchSearch = p.full_name.toLowerCase().includes(search.toLowerCase()) || p.phone_number.includes(search); const matchBranch = branchFilter ? p.branch === branchFilter : true; let matchFilter = true; if(filter === 'paid') matchFilter = p.amount_paid >= REG_FEE; if(filter === 'owing') matchFilter = p.amount_paid < REG_FEE; if(filter === 'checked_in') matchFilter = p.checked_in; return matchSearch && matchBranch && matchFilter; });
+  const filtered = people.filter(p => { 
+      const matchSearch = p.full_name.toLowerCase().includes(search.toLowerCase()) || p.phone_number.includes(search); 
+      const matchBranch = branchFilter ? p.branch === branchFilter : true; 
+      
+      const requiredFee = getRequiredFee(p.role);
+      let matchFilter = true; 
+      if(filter === 'paid') matchFilter = p.amount_paid >= requiredFee; 
+      if(filter === 'owing') matchFilter = p.amount_paid < requiredFee; 
+      if(filter === 'checked_in') matchFilter = p.checked_in; 
+      
+      return matchSearch && matchBranch && matchFilter; 
+    });
 
   if (!session) return (
 <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 relative overflow-hidden font-sans">
@@ -715,16 +761,21 @@ export default function Home() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filtered.map(p => {
-                    const balance = REG_FEE - (p.amount_paid || 0); const isOwing = balance > 0; const isCheckedIn = p.checked_in;
+                    const requiredFee = getRequiredFee(p.role);
+                    const balance = requiredFee - (p.amount_paid || 0); 
+                    const isOwing = balance > 0; 
+                    const isCheckedIn = p.checked_in;
+                    const isSHS = p.role === 'SHS Student';
+
                     return (
                         <div key={p.id} onClick={() => setReportPerson(p)} className="bg-white/5 backdrop-blur-md border border-white/5 rounded-3xl p-5 hover:bg-white/10 hover:border-white/10 transition-all cursor-pointer group active:scale-[0.98]">
-                            <div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-lg text-white leading-tight">{p.full_name}</h3><p className="text-xs text-slate-400 mt-1">{p.branch} • {p.role}</p></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${isCheckedIn ? 'bg-indigo-500/20 text-indigo-400' : (isOwing ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400')}`}>{isCheckedIn ? <CheckCircle className="w-4 h-4"/> : (isOwing ? <AlertCircle className="w-4 h-4"/> : <CheckCircle className="w-4 h-4"/>)}</div></div>
-                            <div className="mb-4">{isCheckedIn ? (<div className="bg-indigo-900/20 border border-indigo-500/20 rounded-xl p-3 text-center"><p className="text-[10px] uppercase text-indigo-300 font-bold tracking-widest">Admitted To</p><p className="text-xl font-bold text-white">{p.grace_school}</p></div>) : (<div className="flex items-baseline gap-1"><span className="text-2xl font-bold text-white font-mono">₵{p.amount_paid}</span><span className="text-xs text-slate-500 font-medium">/ ₵{REG_FEE}</span>{isOwing && <span className="ml-auto text-[10px] font-bold bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">OWING ₵{balance}</span>}</div>)}<p className="text-[9px] text-slate-600 font-mono mt-2 text-right">RCPT-{p.receipt_no}</p></div>
+                            <div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-lg text-white leading-tight">{p.full_name}</h3><p className="text-xs text-slate-400 mt-1">{p.branch} • <span className={isSHS ? "text-amber-400 font-bold" : ""}>{p.role}</span></p></div><div className={`w-8 h-8 rounded-full flex items-center justify-center ${isCheckedIn ? 'bg-indigo-500/20 text-indigo-400' : (isOwing ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400')}`}>{isCheckedIn ? <CheckCircle className="w-4 h-4"/> : (isOwing ? <AlertCircle className="w-4 h-4"/> : <CheckCircle className="w-4 h-4"/>)}</div></div>
+                            <div className="mb-4">{isCheckedIn ? (<div className="bg-indigo-900/20 border border-indigo-500/20 rounded-xl p-3 text-center"><p className="text-[10px] uppercase text-indigo-300 font-bold tracking-widest">Admitted To</p><p className="text-xl font-bold text-white">{p.grace_school}</p></div>) : (<div className="flex items-baseline gap-1"><span className="text-2xl font-bold text-white font-mono">₵{p.amount_paid}</span><span className="text-xs text-slate-500 font-medium">/ ₵{requiredFee}</span>{isOwing && <span className="ml-auto text-[10px] font-bold bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">OWING ₵{balance}</span>}</div>)}<p className="text-[9px] text-slate-600 font-mono mt-2 text-right">RCPT-{p.receipt_no}</p></div>
                             <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                                 <button type="button" onClick={() => { if(!deskLocked) { setSelectedPerson(p); setModalMode('payment'); } else showToast("Desk Locked", "error") }} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border border-white/5 transition-colors flex items-center justify-center gap-2 ${deskLocked ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-white/5 hover:bg-white/10 text-slate-200'}`}><Coins className="w-3 h-3"/> Pay</button>
                                 {!isCheckedIn && (<button type="button" onClick={() => { if(!deskLocked) { setSelectedPerson(p); setModalMode('checkin'); } else showToast("Desk Locked", "error") }} disabled={isOwing} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${isOwing || deskLocked ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}><LogOut className="w-3 h-3 rotate-180"/> Admit</button>)}
                                 
-                                {/* NEW: Ticket Button - Only shows if Paid */}
+                                {/* TICKET BUTTON - Shows if Paid */}
                                 {!isOwing && (
                                     <button type="button" onClick={() => setTicketPerson(p)} className="px-3 bg-indigo-600/20 hover:bg-indigo-600 hover:text-white text-indigo-300 rounded-xl transition-all border border-indigo-500/30"><Ticket className="w-4 h-4"/></button>
                                 )}
@@ -742,14 +793,14 @@ export default function Home() {
         {reportPerson && <UserReportModal person={reportPerson} onClose={() => setReportPerson(null)} onUpdate={fetchPeople} supabase={supabase} />}
         {showDailyAuditModal && <DailyAuditModal dailyAudit={dailyAudit} todaysTotal={todaysTotal} onClose={() => setShowDailyAuditModal(false)} />}
         
-        {/* NEW: Ticket Modal */}
+        {/* Ticket Modal */}
         {ticketPerson && <TicketModal person={ticketPerson} onClose={() => setTicketPerson(null)} />}
         
         {selectedPerson && (
             <ModalBackdrop onClose={() => setSelectedPerson(null)}>
                 <div className="bg-[#1e293b] w-full max-w-sm rounded-3xl border border-white/10 p-6 animate-in zoom-in-95">
                     <h3 className="text-lg font-bold text-white mb-4">{modalMode === 'payment' ? 'Record Payment' : 'Check-In Confirmation'}</h3>
-                    <div className="bg-white/5 rounded-xl p-4 mb-4"><p className="text-xs text-slate-400">Camper</p><p className="text-white font-bold">{selectedPerson.full_name}</p><p className="text-xs text-slate-400 mt-2">Current Status</p><p className={`font-mono ${selectedPerson.amount_paid >= REG_FEE ? 'text-emerald-400' : 'text-amber-400'}`}>₵{selectedPerson.amount_paid} Paid</p></div>
+                    <div className="bg-white/5 rounded-xl p-4 mb-4"><p className="text-xs text-slate-400">Camper</p><p className="text-white font-bold">{selectedPerson.full_name}</p><p className="text-xs text-slate-400 mt-2">Current Status</p><p className={`font-mono ${selectedPerson.amount_paid >= getRequiredFee(selectedPerson.role) ? 'text-emerald-400' : 'text-amber-400'}`}>₵{selectedPerson.amount_paid} Paid</p></div>
                     {modalMode === 'payment' ? (
                         <div className="space-y-3">
                             <div><label className="text-xs text-slate-400 block mb-1">Top-up Amount</label><input type="number" min="0" onKeyDown={(e) => {if (["-", "e", "E", "+"].includes(e.key)) {e.preventDefault();}}} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white text-lg font-mono focus:border-indigo-500 outline-none" autoFocus value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} /></div>
