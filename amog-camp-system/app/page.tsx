@@ -13,7 +13,7 @@ const GRACE_SCHOOLS = ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5', 'G
 const CHURCH_BRANCHES = ['GWC_NSAWAM', 'GWC_LEADERSHIP CITADEL', 'GWC_KUTUNSE', 'GWC_KUMASI', 'GWC_KINTAMPO', 'RWI', 'Guest / Visitor'];
 
 // --- FEES CONFIGURATION ---
-const REG_FEE_STANDARD = 400; // Normal Price
+const REG_FEE_STANDARD = 200; // Normal Price
 const REG_FEE_SHS = 200;      // SHS Price (No Food)
 const MANAGER_PIN = "2026?AMOG"; 
 const GROUP_CAPACITY = 20;
